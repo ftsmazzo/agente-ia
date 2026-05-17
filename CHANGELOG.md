@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2026-05-17
+
+### Fixed
+
+- OpenAI `gpt-5-mini` (e família GPT-5): usa `max_completion_tokens` em vez de `max_tokens` (evita fallback genérico)
+- Log e metadata `llmError` quando a API cai em `llm_fallback`
+
 ## [0.6.1] - 2026-05-17
 
 ### Fixed

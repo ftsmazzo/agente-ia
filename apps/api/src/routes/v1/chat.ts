@@ -115,6 +115,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
 
       let replyText: string;
       let reason: string;
+      let llmErrorDetail: string | undefined;
 
       if (config.llm.enabled) {
         const history = await loadHistory(
@@ -153,7 +154,12 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
             config.llm.maxHistoryTurns,
           );
         } catch (llmErr) {
-          request.log.warn({ err: llmErr }, "LLM failed, using fallback");
+          llmErrorDetail =
+            llmErr instanceof Error ? llmErr.message : String(llmErr);
+          request.log.warn(
+            { err: llmErr, llmError: llmErrorDetail, model: config.llm.model },
+            "LLM failed, using fallback",
+          );
           replyText = buildFallbackReply(
             config.brand,
             contactName,
@@ -185,7 +191,12 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         direction: "outbound",
         status: "queued",
         workflowStep: "chat",
-        metadata: { reason, intent, model: config.llm.model },
+        metadata: {
+          reason,
+          intent,
+          model: config.llm.model,
+          ...(llmErrorDetail && { llmError: llmErrorDetail.slice(0, 500) }),
+        },
       });
 
       request.log.info(
