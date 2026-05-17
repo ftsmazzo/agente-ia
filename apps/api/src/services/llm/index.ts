@@ -1,4 +1,4 @@
-import type { LlmProvider, LlmProviderConfig, LlmProviderId } from "./types.js";
+import type { LlmProvider, LlmProviderConfig } from "./types.js";
 import { createOpenAiProvider } from "./openai-provider.js";
 import { createAnthropicProvider } from "./anthropic-provider.js";
 

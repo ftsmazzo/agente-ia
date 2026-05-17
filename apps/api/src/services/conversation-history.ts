@@ -38,8 +38,8 @@ export async function appendHistory(
   const current = await loadHistory(redis, phone, maxTurns);
   const next: ChatTurn[] = [
     ...current,
-    { role: "user", content: userMessage },
-    { role: "assistant", content: assistantMessage },
+    { role: "user" as const, content: userMessage },
+    { role: "assistant" as const, content: assistantMessage },
   ].slice(-maxTurns * 2);
 
   await redis.set(historyKey(phone), JSON.stringify(next), "EX", TTL_SECONDS);
