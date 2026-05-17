@@ -4,7 +4,7 @@ import type { ExtractedMessage } from "../lib/extract-message.js";
 export async function upsertLeadFromMessage(
   pool: pg.Pool,
   phone: string,
-  message: string,
+  _message: string,
   extracted: ExtractedMessage,
   displayName?: string | null,
 ): Promise<{ contactCreated: boolean; actionCreated: boolean }> {
@@ -34,7 +34,7 @@ export async function upsertLeadFromMessage(
        RETURNING true AS inserted`,
       [phone, extracted.propertyCode],
     );
-    actionCreated = actionResult.rowCount > 0;
+    actionCreated = (actionResult.rowCount ?? 0) > 0;
   }
 
   return { contactCreated, actionCreated };
