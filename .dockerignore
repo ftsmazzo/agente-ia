@@ -9,7 +9,10 @@ node_modules
 deploy/clients
 docs
 n8n
-scripts
+# Dev-only scripts (entrypoint/migrations MUST be in the image)
+scripts/check-brand-leaks.mjs
+scripts/banned-brands.txt
+scripts/docker-entrypoint.sh
 *.md
 !config/prompts/*.md
 .vscode
