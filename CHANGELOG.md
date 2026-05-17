@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.4] - 2026-05-17
+
+### Changed
+
+- Persona e system prompt adaptados do legado SofIA (workflow IA Pazotti), white-label
+- Contexto runtime inclui data/hora no fuso da marca
+
 ## [0.6.3] - 2026-05-17
 
 ### Fixed

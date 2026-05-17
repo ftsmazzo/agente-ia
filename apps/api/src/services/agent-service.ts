@@ -51,6 +51,12 @@ function buildRuntimeContext(
   lines.push(
     `- Marca: ${brand.brandName} | Assistente: ${brand.assistantName}`,
   );
+  const nowLabel = new Date().toLocaleString("pt-BR", {
+    timeZone: brand.timezone,
+    dateStyle: "full",
+    timeStyle: "short",
+  });
+  lines.push(`- Data/hora de referência: ${nowLabel} (${brand.timezone})`);
   lines.push(
     "- Formato: WhatsApp, português BR, mensagem concisa (até ~3 blocos curtos).",
   );
