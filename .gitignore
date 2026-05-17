@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build
+dist/
+build/
+*.tsbuildinfo
+
+# Environment (never commit client secrets)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Client-specific deploy configs (white-label per customer)
+deploy/clients/**/.env
+deploy/clients/**/secrets/
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs & runtime
+logs/
+*.log
+npm-debug.log*
+coverage/
+.nyc_output/
+
+# Docker
+.docker/
+
+# Temp
+tmp/
+*.tmp

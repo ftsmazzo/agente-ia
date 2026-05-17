@@ -1,0 +1,7 @@
+# One banned substring per line (case-insensitive scan).
+# Add legacy client/project names here — NEVER in application source.
+# Lines starting with # are ignored.
+
+pazotti
+fabricadosdados
+sofia pazotti

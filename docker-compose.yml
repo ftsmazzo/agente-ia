@@ -1,0 +1,59 @@
+# Local development — infrastructure only.
+# Evolution, Chatwoot, and n8n run on EasyPanel in production or optional local stacks.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: realty-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: realty
+      POSTGRES_PASSWORD: realty
+      POSTGRES_DB: realty
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U realty -d realty"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: realty-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: realty-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./config/prompts:/app/config/prompts:ro
+    profiles:
+      - full
+
+volumes:
+  postgres_data:
+  redis_data:

@@ -1,0 +1,28 @@
+{
+  "name": "realty-agent-platform",
+  "version": "0.2.0",
+  "private": true,
+  "description": "White-label real estate AI agent platform — API, orchestration hooks, and deployment templates",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "dev": "npm run dev -w @realty/api",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "check:brand-leaks": "node scripts/check-brand-leaks.mjs",
+    "db:migrate": "node scripts/run-migrations.mjs",
+    "ci": "npm run typecheck && npm run check:brand-leaks && npm run test"
+  },
+  "devDependencies": {
+    "pg": "^8.14.1",
+    "typescript": "^5.8.2"
+  }
+}
