@@ -10,6 +10,27 @@ Fase atual: workflow mínimo ponta a ponta (sem debounce/áudio — próxima ite
 
 ## 1. Variáveis de ambiente no n8n
 
+### Liberar `$env` no workflow (erro comum)
+
+Se no editor aparecer **`[ERROR: access to env vars denied]`**, adicione no n8n:
+
+```env
+N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+```
+
+| Valor | Efeito |
+|-------|--------|
+| `false` | Permite `{{ $env.AGENT_API_URL }}` etc. (**necessário**) |
+| `true` | Bloqueia acesso — padrão de segurança em alguns installs |
+
+Depois de salvar: **reinicie o container n8n**.
+
+> O aviso pode continuar no **preview** do nó até você **executar** o workflow — em runtime, com `false`, funciona.
+
+Referência: [n8n Security env vars](https://docs.n8n.io/hosting/configuration/environment-variables/security/)
+
+### Integração WhatsApp
+
 No app **n8n** do EasyPanel, adicione (Environment, não Build Args):
 
 | Variável | Exemplo | Descrição |
@@ -98,3 +119,4 @@ curl -X POST http://agent-ia:3000/v1/chat \
 | Webhook não dispara | URL pública HTTPS, workflow ativo, Evolution apontando certo |
 | Sem resposta WhatsApp | Ver execução n8n; `shouldReply` false? Evolution apikey? |
 | Duplicata | Normal — API retorna `duplicate_message` na 2ª vez |
+| `access to env vars denied` | `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` + restart n8n |
