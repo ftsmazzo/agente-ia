@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-05-17
+
+### Added
+
+- Motor LLM OpenAI (`agent-service.ts`) — respostas reais da assistente
+- Histórico de conversa no Redis (`conversation-history.ts`)
+- Contexto runtime: nome, código imóvel, regras anti-alucinação
+- Fallback automático se OpenAI falhar
+- Doc [docs/fase-2-llm.md](./docs/fase-2-llm.md)
+
+### Changed
+
+- `POST /v1/chat` usa LLM quando `OPENAI_API_KEY` está definida
+- System prompt ajustado para fase sem RAG
+
 ## [0.4.2] - 2026-05-17
 
 ### Added

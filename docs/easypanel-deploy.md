@@ -84,7 +84,16 @@ curl -X POST https://SEU_DOMINIO/v1/chat \
 
 `health` deve retornar `"database": true, "redis": true`.
 
-## 6. Próximo passo (n8n)
+## 6. Fase 2 — OpenAI
+
+```env
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o-mini
+```
+
+Redeploy da API. Detalhes: [fase-2-llm.md](./fase-2-llm.md)
+
+## 7. Próximo passo (n8n)
 
 Importar workflow e configurar Evolution: [n8n-integracao.md](./n8n-integracao.md)
 

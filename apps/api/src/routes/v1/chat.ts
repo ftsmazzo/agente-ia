@@ -16,6 +16,14 @@ import {
   getContactDisplayName,
   upsertLeadFromMessage,
 } from "../../services/lead-service.js";
+import {
+  appendHistory,
+  loadHistory,
+} from "../../services/conversation-history.js";
+import {
+  buildFallbackReply,
+  generateAgentReply,
+} from "../../services/agent-service.js";
 
 export async function chatRoutes(app: FastifyInstance): Promise<void> {
   const config = app.config;
@@ -94,16 +102,62 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         );
       }
 
-      const contactName = await getContactDisplayName(app.db, phone);
-      const greeting = contactName
-        ? `Olá, ${contactName}! `
-        : `Olá! Sou ${config.brand.assistantName}, da ${config.brand.brandName}. `;
+      const contactName =
+        (await getContactDisplayName(app.db, phone)) ?? displayName;
 
-      let replyText = `${greeting}Recebemos sua mensagem`;
-      if (extracted.propertyCode) {
-        replyText += ` sobre o imóvel ${extracted.propertyCode}`;
+      let replyText: string;
+      let reason: string;
+
+      if (config.llm.enabled) {
+        const history = await loadHistory(
+          app.redis,
+          phone,
+          config.llm.maxHistoryTurns,
+        );
+
+        try {
+          replyText = await generateAgentReply({
+            systemPrompt: cachedPrompt,
+            brand: config.brand,
+            history,
+            userMessage: body.message,
+            context: {
+              contactName,
+              propertyCode: extracted.propertyCode,
+              hasPropertyInterest: extracted.hasPropertyInterest,
+            },
+            llm: {
+              apiKey: config.llm.apiKey,
+              model: config.llm.model,
+              maxTokens: config.llm.maxTokens,
+            },
+          });
+          reason = "llm_reply";
+
+          await appendHistory(
+            app.redis,
+            phone,
+            body.message,
+            replyText,
+            config.llm.maxHistoryTurns,
+          );
+        } catch (llmErr) {
+          request.log.warn({ err: llmErr }, "LLM failed, using fallback");
+          replyText = buildFallbackReply(
+            config.brand,
+            contactName,
+            extracted.propertyCode,
+          );
+          reason = "llm_fallback";
+        }
+      } else {
+        replyText = buildFallbackReply(
+          config.brand,
+          contactName,
+          extracted.propertyCode,
+        );
+        reason = "no_llm_key";
       }
-      replyText += `. Em breve nossa equipe inteligente responderá com mais detalhes.`;
 
       const response: ChatResponse = {
         shouldReply: true,
@@ -111,7 +165,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         replyAudio:
           config.features.audioReply && body.messageType === "audio",
         conversationMode: "bot",
-        reason: "phase_1_ack",
+        reason,
       };
 
       const outboundId = `${body.messageId}:out`;
@@ -130,6 +184,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
           phone: phone.slice(-4).padStart(phone.length, "*"),
           propertyCode: extracted.propertyCode,
           mode,
+          reason,
         },
         "chat processed",
       );

@@ -78,8 +78,9 @@ Guia passo a passo: [docs/easypanel-deploy.md](./docs/easypanel-deploy.md)
 | 0 — Fundação (estrutura, BrandConfig, docs, CI) | ✅ |
 | 1 — Postgres, Redis, idempotência, lead upsert | ✅ |
 | 1b — Migrations automáticas no deploy | ✅ |
-| 2 — Workflow n8n mínimo (Evolution → API) | ✅ importar |
-| 3 — Motor LLM + debounce + áudio | 🔜 |
+| 2 — Workflow n8n mínimo (Evolution → API) | ✅ |
+| 2b — Motor LLM (OpenAI + histórico Redis) | ✅ deploy + OPENAI_API_KEY |
+| 3 — RAG imóveis + debounce + áudio | 🔜 |
 | 4 — Chatwoot handoff | 🔜 |
 | 4 — Admin UI (opcional) | 🔜 |
 

@@ -5,6 +5,14 @@ import {
   type FeatureFlags,
 } from "@realty/shared";
 
+export type LlmSettings = {
+  enabled: boolean;
+  apiKey: string;
+  model: string;
+  maxTokens: number;
+  maxHistoryTurns: number;
+};
+
 export type AppConfig = {
   port: number;
   nodeEnv: string;
@@ -15,6 +23,7 @@ export type AppConfig = {
   redisUrl: string;
   brand: BrandConfig;
   features: FeatureFlags;
+  llm: LlmSettings;
 };
 
 export function loadAppConfig(): AppConfig {
@@ -35,6 +44,8 @@ export function loadAppConfig(): AppConfig {
     if (!redisUrl) throw new Error("REDIS_URL is required in production");
   }
 
+  const openaiKey = process.env.OPENAI_API_KEY?.trim() ?? "";
+
   return {
     port,
     nodeEnv: process.env.NODE_ENV ?? "development",
@@ -46,5 +57,12 @@ export function loadAppConfig(): AppConfig {
     redisUrl: process.env.REDIS_URL ?? "",
     brand: loadBrandConfigFromEnv(),
     features: loadFeatureFlagsFromEnv(),
+    llm: {
+      enabled: Boolean(openaiKey),
+      apiKey: openaiKey,
+      model: process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini",
+      maxTokens: Number(process.env.OPENAI_MAX_TOKENS ?? 500),
+      maxHistoryTurns: Number(process.env.CHAT_MAX_HISTORY_TURNS ?? 8),
+    },
   };
 }
