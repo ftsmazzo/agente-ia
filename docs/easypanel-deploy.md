@@ -24,6 +24,8 @@ Ou terminal one-off com imagem Node apontando para o repo.
 
 > **Importante:** variáveis (`BRAND_*`, `DATABASE_URL`, etc.) devem ser **Environment Variables** do container, **não** Build Args — a API lê env em runtime.
 
+> Se o build falhar com código antigo após um push, use **Rebuild without cache** no EasyPanel. O Dockerfile usa `GIT_SHA` para invalidar cache automaticamente.
+
 ## 3. Variáveis obrigatórias
 
 ```env

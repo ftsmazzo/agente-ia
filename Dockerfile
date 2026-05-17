@@ -4,6 +4,10 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
+# EasyPanel passes GIT_SHA — busts Docker layer cache on new commits
+ARG GIT_SHA=dev
+RUN echo "build commit: ${GIT_SHA}"
+
 COPY package.json ./
 COPY packages/shared/package.json ./packages/shared/
 COPY apps/api/package.json ./apps/api/

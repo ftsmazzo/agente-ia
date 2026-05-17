@@ -4,7 +4,6 @@ import type { ExtractedMessage } from "../lib/extract-message.js";
 export async function upsertLeadFromMessage(
   pool: pg.Pool,
   phone: string,
-  _message: string,
   extracted: ExtractedMessage,
   displayName?: string | null,
 ): Promise<{ contactCreated: boolean; actionCreated: boolean }> {

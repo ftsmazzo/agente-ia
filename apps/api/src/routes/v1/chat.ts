@@ -85,7 +85,6 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
       await upsertLeadFromMessage(
         app.db,
         phone,
-        body.message,
         extracted,
         metadataName,
       );
