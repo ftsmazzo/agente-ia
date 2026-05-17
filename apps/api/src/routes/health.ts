@@ -33,6 +33,14 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
         model: config.llm.model,
         maxTokens: config.llm.maxTokens,
       },
+      rag: {
+        enabled: config.rag.enabled,
+        knowledgeBaseId: config.rag.enabled
+          ? config.rag.knowledgeBaseId
+          : null,
+        topK: config.rag.topK,
+        baseUrl: config.rag.baseUrl,
+      },
       checks: { database: dbOk, redis: redisOk },
       features: config.features,
       timestamp: new Date().toISOString(),

@@ -74,7 +74,15 @@ export function formatPropertyKnowledgeBlock(
   const lines = records.map((r, i) => {
     const code = r.property_code ?? r.codigo ?? "?";
     const summary = r.summary ?? r.titulo ?? JSON.stringify(r);
-    return `${i + 1}. ${code}: ${summary}`;
+    const link =
+      typeof r.link === "string" && r.link.trim()
+        ? ` | ${r.link.trim()}`
+        : "";
+    const score =
+      typeof r.similarity === "number"
+        ? ` (relevância ${(r.similarity * 100).toFixed(0)}%)`
+        : "";
+    return `${i + 1}. ${code}: ${summary}${link}${score}`;
   });
   return `[DADOS DO SISTEMA]\n${lines.join("\n")}\n[/DADOS DO SISTEMA]`;
 }

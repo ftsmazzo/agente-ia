@@ -86,7 +86,8 @@ Troque `LLM_PROVIDER` + redeploy → teste A/B no mesmo WhatsApp.
 | Fase | Entrega |
 |------|---------|
 | **2a** ✅ | Persona em arquivo, multi-LLM, intenção A/B |
-| **2c** | Serviço `property-search`: SQL + pgvector → `[DADOS DO SISTEMA]` |
+| **2c** ✅ | RAG externo (`property-rag-service`) → `[DADOS DO SISTEMA]` — ver [rag-integracao.md](./rag-integracao.md) |
+| **2c-b** | Lookup SQL por código AP#### no Postgres |
 | **2d** | MCP ou API do workflow Imóveis Pazotti (se migrar catálogo) |
 | **3** | Admin UI (persona, modelo, flags) |
 | **4** | Debounce n8n, áudio, Chatwoot |

@@ -28,6 +28,7 @@ import {
   buildFallbackReply,
   generateAgentReply,
 } from "../../services/agent-service.js";
+import { fetchPropertyKnowledgeFromRag } from "../../services/property-rag-service.js";
 
 export async function chatRoutes(app: FastifyInstance): Promise<void> {
   const config = app.config;
@@ -116,6 +117,35 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
       let replyText: string;
       let reason: string;
       let llmErrorDetail: string | undefined;
+      let ragMeta:
+        | { sourceCount: number; ragQuery: string }
+        | { error: string }
+        | undefined;
+
+      let propertyKnowledge: string | undefined;
+      if (config.rag.enabled) {
+        try {
+          const ragResult = await fetchPropertyKnowledgeFromRag({
+            rag: config.rag,
+            brand: config.brand,
+            userMessage: body.message,
+            intent,
+            propertyCode: extracted.propertyCode,
+          });
+          if (ragResult) {
+            propertyKnowledge = ragResult.block;
+            ragMeta = {
+              sourceCount: ragResult.sourceCount,
+              ragQuery: ragResult.ragQuery,
+            };
+          }
+        } catch (ragErr) {
+          const ragError =
+            ragErr instanceof Error ? ragErr.message : String(ragErr);
+          ragMeta = { error: ragError.slice(0, 300) };
+          request.log.warn({ err: ragErr, intent }, "RAG query failed");
+        }
+      }
 
       if (config.llm.enabled) {
         const history = await loadHistory(
@@ -141,10 +171,11 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
               model: config.llm.model,
               maxTokens: config.llm.maxTokens,
             },
-            // Fase 2c: propertyKnowledge from RAG + SQL table
-            propertyKnowledge: undefined,
+            propertyKnowledge,
           });
-          reason = `llm_${config.llm.provider}`;
+          reason = propertyKnowledge
+            ? `llm_${config.llm.provider}_rag`
+            : `llm_${config.llm.provider}`;
 
           await appendHistory(
             app.redis,
@@ -196,6 +227,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
           reason,
           intent,
           model: config.llm.model,
+          ...(ragMeta && { rag: ragMeta }),
           ...(llmErrorDetail && { llmError: llmErrorDetail.slice(0, 500) }),
         },
       });
@@ -206,6 +238,10 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
           intent,
           provider: config.llm.provider,
           model: config.llm.model,
+          ragUsed: Boolean(propertyKnowledge),
+          ...(ragMeta && "sourceCount" in ragMeta
+            ? { ragSources: ragMeta.sourceCount }
+            : {}),
         },
         "chat processed",
       );

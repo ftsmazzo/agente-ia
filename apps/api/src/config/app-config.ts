@@ -6,6 +6,7 @@ import {
 } from "@realty/shared";
 import type { LlmProviderId } from "../services/llm/types.js";
 import { resolveOpenAiMaxOutputTokens } from "../services/llm/openai-model.js";
+import { loadRagSettings, type RagSettings } from "./rag-config.js";
 
 export type LlmSettings = {
   enabled: boolean;
@@ -28,6 +29,7 @@ export type AppConfig = {
   brand: BrandConfig;
   features: FeatureFlags;
   llm: LlmSettings;
+  rag: RagSettings;
 };
 
 function resolveLlmProvider(): LlmProviderId {
@@ -90,6 +92,8 @@ export function loadAppConfig(): AppConfig {
 
   const databaseUrl = process.env.DATABASE_URL?.trim() ?? "";
   const redisUrl = process.env.REDIS_URL?.trim() ?? "";
+  const features = loadFeatureFlagsFromEnv();
+  const rag = loadRagSettings(features.propertyRag);
 
   if (process.env.NODE_ENV === "production") {
     if (!databaseUrl) throw new Error("DATABASE_URL is required in production");
@@ -109,7 +113,8 @@ export function loadAppConfig(): AppConfig {
     databaseUrl,
     redisUrl,
     brand: loadBrandConfigFromEnv(),
-    features: loadFeatureFlagsFromEnv(),
+    features,
     llm: loadLlmSettings(),
+    rag,
   };
 }
