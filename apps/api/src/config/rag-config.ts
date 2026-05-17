@@ -18,7 +18,7 @@ export function loadRagSettings(
     process.env.RAG_KB_ID?.trim() ??
     "";
 
-  const topK = Number(process.env.RAG_TOP_K ?? 3);
+  const topK = Number(process.env.RAG_TOP_K ?? 5);
   const timeoutMs = Number(process.env.RAG_TIMEOUT_MS ?? 15_000);
 
   const enabled =

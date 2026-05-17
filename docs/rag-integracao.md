@@ -39,6 +39,25 @@ curl -s "https://rag.fabricadosdados.ia.br/api/knowledge-bases" \
   -H "Authorization: Bearer SUA_API_KEY"
 ```
 
+## Como o RAG funciona (e por que “sumiu” o bairro)
+
+1. A planilha vira **chunks** grandes (vários imóveis por trecho, ~500 tokens).
+2. A API manda uma **pergunta em texto** (`bairro Planalto Verde 2 quartos Ribeirão Preto venda`).
+3. O RAG devolve os **top K trechos** mais parecidos semanticamente — não é SQL.
+4. A API **parseia** linhas `Ativo,AP####,...` e filtra pelo bairro/quartos no texto.
+
+Se o bairro está no chunk 78 mas `topK=3` só traz chunks 14, 27 e 52, a SofIA não vê Planalto Verde. Por isso usamos `RAG_TOP_K_CRITERIA=10` e query com **histórico** (“E no Planalto Verde?”).
+
+**Melhor indexação (recomendado):** 1 documento por imóvel, começando com:
+
+```text
+Código: AP0767
+Bairro: Planalto Verde
+Cidade: Ribeirão Preto
+Quartos: 2 | Banheiros: 1
+Tipo: Apartamento | Operação: Venda
+```
+
 ## Indexar imóveis na base
 
 No painel do RAG, suba documentos por imóvel (texto, PDF ou export do site). Ideal em cada documento:

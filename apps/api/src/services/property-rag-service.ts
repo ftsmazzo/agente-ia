@@ -1,12 +1,21 @@
 import type { BrandConfig } from "@realty/shared";
 import type { RagSettings } from "../config/rag-config.js";
 import type { MessageIntent } from "../lib/message-intent.js";
+import {
+  filterListingsByCriteria,
+  parseListingsFromChunk,
+  type ParsedListing,
+} from "../lib/rag-csv-listings.js";
+import {
+  criteriaFromHistory,
+  type RagSearchCriteria,
+} from "../lib/rag-search-criteria.js";
+import type { ChatTurn } from "./conversation-history.js";
 import { formatPropertyKnowledgeBlock } from "./agent-service.js";
 import { queryKnowledgeBase } from "./rag-client.js";
 
 const PROPERTY_CODE = /\b([A-Za-z]{2}\d{4})\b/i;
 
-/** Remove trechos sensíveis antes de enviar ao LLM (camada extra à persona). */
 function sanitizeSnippet(text: string): string {
   return text
     .replace(/\b\d{2}\s?\d{4,5}-?\d{4}\b/g, "[telefone omitido]")
@@ -14,7 +23,10 @@ function sanitizeSnippet(text: string): string {
       /\b(?:rua|av\.|avenida|alameda|travessa|rodovia)\s+[^.\n]{10,80}/gi,
       "[endereço completo omitido — informar bairro na visita]",
     )
-    .replace(/\b(?:aluguel|locação|alugar|inquilino|fiador|caução)\b/gi, "[locação omitida]")
+    .replace(
+      /\b(?:aluguel|locação|alugar|inquilino|fiador|caução)\b/gi,
+      "[locação omitida]",
+    )
     .trim();
 }
 
@@ -31,14 +43,42 @@ export function buildRagQuery(params: {
   intent: MessageIntent;
   propertyCode: string | null;
   brandName: string;
+  criteria: RagSearchCriteria;
 }): string {
-  const saleContext = "imóvel à venda compra (não aluguel)";
+  const parts: string[] = [];
 
   if (params.intent === "property_by_code" && params.propertyCode) {
-    return `${saleContext} código ${params.propertyCode} ficha detalhes ${params.brandName}`;
+    parts.push(
+      `imóvel à venda código ${params.propertyCode}`,
+      params.brandName,
+    );
+    return parts.join(" ");
   }
 
-  return `${params.userMessage.trim()} ${saleContext}`;
+  parts.push(params.userMessage.trim());
+
+  for (const bairro of params.criteria.neighborhoods) {
+    parts.push(`bairro ${bairro}`);
+  }
+  if (params.criteria.bedrooms !== null) {
+    parts.push(`${params.criteria.bedrooms} quartos`);
+  }
+  if (params.criteria.bathrooms !== null) {
+    parts.push(`${params.criteria.bathrooms} banheiro`);
+  }
+  if (params.criteria.propertyTypes.length > 0) {
+    parts.push(params.criteria.propertyTypes.join(" "));
+  }
+
+  parts.push("Ribeirão Preto", "venda", "não aluguel", params.brandName);
+  return parts.join(" ");
+}
+
+function effectiveTopK(rag: RagSettings, intent: MessageIntent): number {
+  if (intent === "property_by_code") return rag.topK;
+  const criteriaMin = Number(process.env.RAG_TOP_K_CRITERIA ?? 10);
+  const minK = Number.isFinite(criteriaMin) && criteriaMin > 0 ? criteriaMin : 10;
+  return Math.max(rag.topK, minK);
 }
 
 function extractPropertyCode(...texts: Array<string | undefined>): string | null {
@@ -50,65 +90,153 @@ function extractPropertyCode(...texts: Array<string | undefined>): string | null
   return null;
 }
 
+function inferBairroFromRow(raw: string): string | null {
+  const match = raw.match(
+    /"[^"]*",(?:[^,]*,)?([^,]+),[^,]*,Ribeirão Preto/i,
+  );
+  return match?.[1]?.trim() ?? null;
+}
+
+function inferTipoFromRow(raw: string): string | null {
+  const match = raw.match(/Ativo,[A-Z]{2}\d{4},(?:[^,]+,)?([^,]+),Residencial/i);
+  return match?.[1]?.trim() ?? null;
+}
+
+function listingToRecord(
+  listing: ParsedListing,
+  brand: BrandConfig,
+): Record<string, unknown> {
+  const website = brand.brandWebsite?.replace(/\/$/, "") ?? "";
+  const bairro = inferBairroFromRow(listing.raw);
+  const tipo = inferTipoFromRow(listing.raw);
+  const summaryParts = [
+    tipo ? `Tipo: ${tipo}` : null,
+    bairro ? `Bairro: ${bairro}` : null,
+    sanitizeSnippet(listing.raw).slice(0, 500),
+  ].filter(Boolean);
+
+  return {
+    property_code: listing.property_code,
+    titulo: listing.property_code,
+    summary: summaryParts.join(" | "),
+    ...(website
+      ? { link: `${website}/imovel/${listing.property_code}` }
+      : {}),
+  };
+}
+
 function sourcesToRecords(
   sources: Awaited<ReturnType<typeof queryKnowledgeBase>>["sources"],
   brand: BrandConfig,
+  criteria: RagSearchCriteria,
 ): Array<Record<string, unknown>> {
-  const website = brand.brandWebsite?.replace(/\/$/, "") ?? "";
+  const allListings: ParsedListing[] = [];
+  for (const source of sources) {
+    allListings.push(...parseListingsFromChunk(source.content));
+  }
 
+  const filtered = filterListingsByCriteria(allListings, criteria, 8);
+
+  if (filtered.length > 0) {
+    return filtered.map((l) => listingToRecord(l, brand));
+  }
+
+  if (allListings.length > 0 && criteria.neighborhoods.length > 0) {
+    return [];
+  }
+
+  const website = brand.brandWebsite?.replace(/\/$/, "") ?? "";
   return sources.map((source) => {
     const code =
       extractPropertyCode(source.content, source.filename) ?? "?";
-    const summary = sanitizeSnippet(source.content).slice(0, 900);
-    const link =
-      website && code !== "?"
-        ? `${website}/imovel/${code}`
-        : undefined;
-
     return {
       property_code: code,
       titulo: source.filename ?? code,
-      summary,
+      summary: sanitizeSnippet(source.content).slice(0, 900),
       similarity: source.similarity,
-      ...(link ? { link } : {}),
+      ...(website && code !== "?"
+        ? { link: `${website}/imovel/${code}` }
+        : {}),
     };
   });
 }
 
-/**
- * Consulta o RAG e devolve bloco [DADOS DO SISTEMA] ou undefined se desligado/erro.
- */
+function buildKnowledgeBlock(
+  records: Array<Record<string, unknown>>,
+  criteria: RagSearchCriteria,
+  parsedFromCsv: boolean,
+): string {
+  if (records.length === 0 && criteria.neighborhoods.length > 0) {
+    const bairros = criteria.neighborhoods.join(", ");
+    const extra = criteria.bedrooms
+      ? `, ${criteria.bedrooms} quartos`
+      : "";
+    return `[DADOS DO SISTEMA]
+Nenhum imóvel encontrado nos trechos indexados para: ${bairros}${extra}.
+Se o catálogo tiver esse bairro, vale reindexar com um documento por imóvel (campo Bairro explícito) ou aumentar RAG_TOP_K.
+[/DADOS DO SISTEMA]`;
+  }
+
+  const header =
+    parsedFromCsv && criteria.neighborhoods.length > 0
+      ? `[Critérios: ${criteria.neighborhoods.join(", ")}${criteria.bedrooms ? `; ${criteria.bedrooms} quartos` : ""}]\n`
+      : "";
+
+  return header + formatPropertyKnowledgeBlock(records);
+}
+
 export async function fetchPropertyKnowledgeFromRag(params: {
   rag: RagSettings;
   brand: BrandConfig;
   userMessage: string;
   intent: MessageIntent;
   propertyCode: string | null;
+  history?: ChatTurn[];
 }): Promise<
-  | { block: string; sourceCount: number; ragQuery: string }
+  | {
+      block: string;
+      sourceCount: number;
+      ragQuery: string;
+      parsedListings: number;
+      matchedListings: number;
+    }
   | undefined
 > {
   if (!shouldQueryPropertyRag(params.rag, params.intent)) {
     return undefined;
   }
 
+  const criteria = criteriaFromHistory(
+    params.userMessage,
+    params.history ?? [],
+  );
+
   const ragQuery = buildRagQuery({
     userMessage: params.userMessage,
     intent: params.intent,
     propertyCode: params.propertyCode,
     brandName: params.brand.brandName,
+    criteria,
   });
+
+  const topK = effectiveTopK(params.rag, params.intent);
 
   const result = await queryKnowledgeBase({
     baseUrl: params.rag.baseUrl,
     apiKey: params.rag.apiKey,
     knowledgeBaseId: params.rag.knowledgeBaseId,
     query: ragQuery,
-    topK: params.rag.topK,
+    topK,
     timeoutMs: params.rag.timeoutMs,
   });
 
-  let records = sourcesToRecords(result.sources, params.brand);
+  const allListings = result.sources.flatMap((s) =>
+    parseListingsFromChunk(s.content),
+  );
+  const matched = filterListingsByCriteria(allListings, criteria, 8);
+  const parsedFromCsv = matched.length > 0;
+
+  let records = sourcesToRecords(result.sources, params.brand, criteria);
 
   if (records.length === 0 && result.answer) {
     records = [
@@ -122,8 +250,10 @@ export async function fetchPropertyKnowledgeFromRag(params: {
   }
 
   return {
-    block: formatPropertyKnowledgeBlock(records),
+    block: buildKnowledgeBlock(records, criteria, parsedFromCsv),
     sourceCount: records.length,
     ragQuery,
+    parsedListings: allListings.length,
+    matchedListings: matched.length,
   };
 }

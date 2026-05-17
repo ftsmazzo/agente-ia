@@ -118,9 +118,20 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
       let reason: string;
       let llmErrorDetail: string | undefined;
       let ragMeta:
-        | { sourceCount: number; ragQuery: string }
+        | {
+            sourceCount: number;
+            ragQuery: string;
+            parsedListings?: number;
+            matchedListings?: number;
+          }
         | { error: string }
         | undefined;
+
+      const history = await loadHistory(
+        app.redis,
+        phone,
+        config.llm.maxHistoryTurns,
+      );
 
       let propertyKnowledge: string | undefined;
       if (config.rag.enabled) {
@@ -131,12 +142,15 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
             userMessage: body.message,
             intent,
             propertyCode: extracted.propertyCode,
+            history,
           });
           if (ragResult) {
             propertyKnowledge = ragResult.block;
             ragMeta = {
               sourceCount: ragResult.sourceCount,
               ragQuery: ragResult.ragQuery,
+              parsedListings: ragResult.parsedListings,
+              matchedListings: ragResult.matchedListings,
             };
           }
         } catch (ragErr) {
@@ -148,12 +162,6 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
       }
 
       if (config.llm.enabled) {
-        const history = await loadHistory(
-          app.redis,
-          phone,
-          config.llm.maxHistoryTurns,
-        );
-
         try {
           replyText = await generateAgentReply({
             systemPrompt: await getSystemPrompt(),
