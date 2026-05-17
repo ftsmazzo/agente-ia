@@ -1,6 +1,6 @@
 {
   "name": "realty-agent-platform",
-  "version": "0.2.4",
+  "version": "0.3.0",
   "private": true,
   "description": "White-label real estate AI agent platform — API, orchestration hooks, and deployment templates",
   "license": "UNLICENSED",
@@ -21,8 +21,10 @@
     "db:migrate": "node scripts/run-migrations.mjs",
     "ci": "npm run typecheck && npm run check:brand-leaks && npm run test"
   },
+  "dependencies": {
+    "pg": "^8.14.1"
+  },
   "devDependencies": {
-    "pg": "^8.14.1",
     "typescript": "^5.8.2"
   }
 }

@@ -20,6 +20,12 @@ npm run db:migrate
 npm run dev
 ```
 
+Com Docker (`--profile full`), migrations também rodam no entrypoint do container.
+
+```bash
+docker compose --profile full up
+```
+
 API em `http://localhost:3000`.
 
 ## Comandos úteis

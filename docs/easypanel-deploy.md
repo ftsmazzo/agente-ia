@@ -2,15 +2,27 @@
 
 Repositório: [github.com/ftsmazzo/agente-ia](https://github.com/ftsmazzo/agente-ia)
 
-## 1. PostgreSQL — migrations
+## 1. PostgreSQL — migrations automáticas
 
-No Postgres do EasyPanel, crie database `agente` (ou use o existente) e rode migrations **uma vez**:
+**Não é necessário terminal na VPS.** Ao subir o container da API:
 
-```bash
-DATABASE_URL=postgresql://USER:PASS@HOST:5432/DB npm run db:migrate
-```
+1. Aguarda o Postgres ficar disponível (`wait-for-database.mjs`)
+2. Aplica SQL em `db/migrations/` (`run-migrations.mjs`)
+3. Inicia a API
 
-Ou terminal one-off com imagem Node apontando para o repo.
+Isso roda em **todo deploy/restart** — migrations já aplicadas são ignoradas (`schema_migrations`).
+
+Variáveis opcionais:
+
+| Variável | Padrão | Descrição |
+|----------|--------|-----------|
+| `RUN_MIGRATIONS_ON_START` | `true` | `false` desliga migrations no startup |
+| `DB_WAIT_MAX_ATTEMPTS` | `30` | Tentativas de conexão ao Postgres |
+| `DB_WAIT_DELAY_MS` | `2000` | Intervalo entre tentativas (ms) |
+
+Logs esperados no container: `[entrypoint] applying SQL migrations...` → `[migrate] complete`.
+
+Para novo cliente: banco Postgres vazio + redeploy da API = schema pronto.
 
 ## 2. App API no EasyPanel
 

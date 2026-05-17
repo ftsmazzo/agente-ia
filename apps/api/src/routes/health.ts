@@ -24,7 +24,7 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
     const payload = {
       status: healthy ? "ok" : "degraded",
       service: "agente-ia-api",
-      version: "0.2.0",
+      version: process.env.APP_VERSION ?? "0.3.0",
       brand_slug: config.brand.brandSlug,
       checks: { database: dbOk, redis: redisOk },
       features: config.features,

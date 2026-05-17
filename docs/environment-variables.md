@@ -47,6 +47,15 @@ Referência para `.env` local e EasyPanel. Copie de `.env.example`.
 | `DATABASE_URL` | PostgreSQL connection string |
 | `REDIS_URL` | Redis connection string |
 
+## Migrations (startup automático)
+
+| Variável | Padrão | Descrição |
+|----------|--------|-----------|
+| `RUN_MIGRATIONS_ON_START` | `true` | Aplica migrations ao iniciar container |
+| `DB_WAIT_MAX_ATTEMPTS` | `30` | Tentativas até Postgres aceitar conexão |
+| `DB_WAIT_DELAY_MS` | `2000` | Pausa entre tentativas (ms) |
+| `APP_ROOT` | `/app` | Raiz da app no container (interno) |
+
 ## Integrações (URLs internas Docker)
 
 | Variável | Uso |

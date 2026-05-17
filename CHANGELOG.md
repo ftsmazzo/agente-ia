@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-05-17
+
+### Added
+
+- Migrations SQL **automáticas** no startup do container (`docker-entrypoint.sh`)
+- Espera Postgres com retry antes das migrations (`wait-for-database.mjs`)
+- `db/migrations` incluído na imagem Docker
+
+### Changed
+
+- Health `version` via `APP_VERSION` (padrão `0.3.0`)
+- Healthcheck `start-period` 60s (tempo para migrations na primeira subida)
+- `pg` como dependência de produção (migrations no container)
+
 ## [0.2.4] - 2026-05-17
 
 ### Fixed
