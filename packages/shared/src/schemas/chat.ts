@@ -8,7 +8,16 @@ export const chatRequestSchema = z.object({
   timestamp: z.union([z.string(), z.number()]).optional(),
   instance: z.string().optional(),
   messageType: z.enum(["text", "audio", "image", "other"]).default("text"),
-  metadata: z.record(z.unknown()).optional(),
+  /** WhatsApp pushName / notifyName — enviado pelo n8n a partir do webhook Evolution */
+  metadata: z
+    .object({
+      displayName: z.string().optional(),
+      pushName: z.string().optional(),
+      whatsappName: z.string().optional(),
+      notifyName: z.string().optional(),
+    })
+    .passthrough()
+    .optional(),
 });
 
 export type ChatRequest = z.infer<typeof chatRequestSchema>;

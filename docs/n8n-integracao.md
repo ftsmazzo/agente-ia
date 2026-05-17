@@ -66,8 +66,11 @@ Eventos esperados no body (padrão Evolution):
 - `data.key.id` — ID da mensagem
 - `data.key.remoteJid` — telefone
 - `data.message.conversation` — texto
+- `data.pushName` — **nome exibido no WhatsApp** (gravado em `app.contacts.display_name`)
 - `instance` — nome da instância
 - `server_url` — URL da Evolution
+
+> Reimporte o workflow `01-whatsapp-agent.json` após atualizações para enviar `pushName` à API.
 
 ## 4. Fluxo do workflow
 

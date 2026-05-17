@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { chatRequestSchema, type ChatResponse } from "@realty/shared";
 import { extractFromMessage } from "../../lib/extract-message.js";
+import { resolveDisplayName } from "../../lib/resolve-display-name.js";
 import { loadSystemPrompt } from "../../lib/prompt-loader.js";
 import { claimMessage } from "../../services/idempotency.js";
 import {
@@ -77,16 +78,13 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const extracted = extractFromMessage(body.message);
-      const metadataName =
-        typeof body.metadata?.displayName === "string"
-          ? body.metadata.displayName
-          : null;
+      const displayName = resolveDisplayName(body.metadata, body.message);
 
       await upsertLeadFromMessage(
         app.db,
         phone,
         extracted,
-        metadataName,
+        displayName,
       );
 
       if (!cachedPrompt) {

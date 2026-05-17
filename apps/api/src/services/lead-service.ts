@@ -12,9 +12,13 @@ export async function upsertLeadFromMessage(
 
   const contactResult = await pool.query(
     `INSERT INTO app.contacts (phone, display_name, updated_at)
-     VALUES ($1, $2, NOW())
+     VALUES ($1::text, $2::text, NOW())
      ON CONFLICT (phone) DO UPDATE SET
-       display_name = COALESCE(EXCLUDED.display_name, app.contacts.display_name),
+       display_name = CASE
+         WHEN EXCLUDED.display_name IS NOT NULL AND TRIM(EXCLUDED.display_name) <> ''
+         THEN EXCLUDED.display_name
+         ELSE app.contacts.display_name
+       END,
        updated_at = NOW()
      RETURNING (xmax = 0) AS inserted`,
     [phone, displayName ?? null],

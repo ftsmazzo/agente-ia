@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.first().json;\nconst b = raw.body ?? raw;\nconst data = b.data ?? {};\nconst key = data.key ?? {};\nconst msg = data.message ?? {};\nconst remoteJid = String(key.remoteJid || '');\nconst phone = remoteJid.split('@')[0].replace(/\\D/g, '');\nconst text =\n  msg.conversation ||\n  msg.extendedTextMessage?.text ||\n  msg.imageMessage?.caption ||\n  '';\nconst evolutionUrl = String(b.server_url || $env.EVOLUTION_BASE_URL || '').replace(/\\/$/, '');\n\nreturn [\n  {\n    json: {\n      messageId: String(key.id || `${Date.now()}`),\n      phone,\n      message: text.trim() || '[sem texto]',\n      instance: String(b.instance || ''),\n      fromMe: key.fromMe === true,\n      isGroup: remoteJid.endsWith('@g.us'),\n      evolutionUrl,\n      messageType: msg.audioMessage ? 'audio' : text ? 'text' : 'other',\n    },\n  },\n];"
+        "jsCode": "const raw = $input.first().json;\nconst b = raw.body ?? raw;\nconst data = b.data ?? {};\nconst key = data.key ?? {};\nconst msg = data.message ?? {};\nconst remoteJid = String(key.remoteJid || '');\nconst phone = remoteJid.split('@')[0].replace(/\\D/g, '');\nconst text =\n  msg.conversation ||\n  msg.extendedTextMessage?.text ||\n  msg.imageMessage?.caption ||\n  '';\nconst pushName = String(\n  data.pushName || b.pushName || key.pushName || data.notifyName || ''\n).trim();\nconst evolutionUrl = String(b.server_url || $env.EVOLUTION_BASE_URL || '').replace(/\\/$/, '');\n\nreturn [\n  {\n    json: {\n      messageId: String(key.id || `${Date.now()}`),\n      phone,\n      message: text.trim() || '[sem texto]',\n      instance: String(b.instance || ''),\n      fromMe: key.fromMe === true,\n      isGroup: remoteJid.endsWith('@g.us'),\n      evolutionUrl,\n      pushName,\n      messageType: msg.audioMessage ? 'audio' : text ? 'text' : 'other',\n    },\n  },\n];"
       },
       "id": "a1000001-0001-4001-8001-000000000002",
       "name": "Normalizar",
@@ -96,7 +96,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ messageId: $('Normalizar').item.json.messageId, phone: $('Normalizar').item.json.phone, message: $('Normalizar').item.json.message, instance: $('Normalizar').item.json.instance, messageType: $('Normalizar').item.json.messageType }) }}",
+        "jsonBody": "={{ JSON.stringify({ messageId: $('Normalizar').item.json.messageId, phone: $('Normalizar').item.json.phone, message: $('Normalizar').item.json.message, instance: $('Normalizar').item.json.instance, messageType: $('Normalizar').item.json.messageType, metadata: { pushName: $('Normalizar').item.json.pushName || undefined, displayName: $('Normalizar').item.json.pushName || undefined } }) }}",
         "options": {
           "timeout": 120000
         }

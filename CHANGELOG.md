@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2026-05-17
+
+### Added
+
+- Gravação de `display_name` via WhatsApp `pushName` (Evolution → n8n → API)
+- Atualização do nome no contato quando chega pushName depois
+- Detecção leve de "me chamo …" na mensagem
+- Doc [docs/dados-gravados.md](./docs/dados-gravados.md)
+
+### Changed
+
+- Workflow n8n envia `metadata.pushName` no POST `/v1/chat`
+
 ## [0.4.1] - 2026-05-17
 
 ### Fixed
