@@ -38,22 +38,22 @@ COPY --from=builder /app/apps/api/package.json ./apps/api/
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/config/prompts ./config/prompts
 
-# Migrations run automatically on container start (see scripts/docker-entrypoint.sh)
+# Migrations run automatically on container start (docker-entrypoint.mjs)
 COPY db/migrations ./db/migrations
-COPY scripts/wait-for-database.mjs scripts/run-migrations.mjs scripts/docker-entrypoint.sh ./scripts/
+COPY scripts/wait-for-database.mjs scripts/run-migrations.mjs scripts/docker-entrypoint.mjs ./scripts/
 
 ENV APP_ROOT=/app
 ENV RUN_MIGRATIONS_ON_START=true
+ENV APP_VERSION=0.3.1
 
-RUN chmod +x /app/scripts/docker-entrypoint.sh \
-  && chown -R realty:realty /app/db /app/scripts
+RUN chown -R realty:realty /app/db /app/scripts
 
 USER realty
 
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=5 \
   CMD wget -qO- http://127.0.0.1:3000/health || exit 1
 
-ENTRYPOINT ["/app/scripts/docker-entrypoint.sh"]
+ENTRYPOINT ["node", "/app/scripts/docker-entrypoint.mjs"]
 CMD ["node", "apps/api/dist/index.js"]

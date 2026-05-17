@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-05-17
+
+### Fixed
+
+- Entrypoint em Node (`docker-entrypoint.mjs`) — evita falha `no such file` por CRLF no `.sh` (Windows)
+- Retry de conexão Redis/Postgres na subida da API (EasyPanel)
+- `.gitattributes` para line endings LF em scripts
+- Healthcheck `start-period` 90s
+
 ## [0.3.0] - 2026-05-17
 
 ### Added

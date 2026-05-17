@@ -22,6 +22,15 @@ Variáveis opcionais:
 
 Logs esperados no container: `[entrypoint] applying SQL migrations...` → `[migrate] complete`.
 
+### Se o container não subir
+
+1. Abra **Logs** do serviço no EasyPanel (não precisa de terminal).
+2. Erros comuns:
+   - `no such file` / `\r` no entrypoint → atualize para v0.3.1+
+   - `DATABASE_URL is required` → variável só em **Environment**, não Build Args
+   - `relation already exists` → banco parcial; avise para script de repair
+3. Envie as últimas 30 linhas do log se precisar de suporte.
+
 Para novo cliente: banco Postgres vazio + redeploy da API = schema pronto.
 
 ## 2. App API no EasyPanel
