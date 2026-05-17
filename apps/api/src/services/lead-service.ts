@@ -22,16 +22,18 @@ export async function upsertLeadFromMessage(
   contactCreated = Boolean(contactResult.rows[0]?.inserted);
 
   if (extracted.hasPropertyInterest || extracted.propertyCode) {
+    const propertyCode = extracted.propertyCode ?? null;
+    // $1 reutilizado no mesmo prepared statement quebra tipagem no Postgres — usar $3 para phone no NOT EXISTS
     const actionResult = await pool.query(
       `INSERT INTO app.lead_actions (phone, property_code, status, updated_at)
-       SELECT $1, $2, 'qualification', NOW()
+       SELECT $1::text, $2::text, 'qualification', NOW()
        WHERE NOT EXISTS (
          SELECT 1 FROM app.lead_actions la
-         WHERE la.phone = $1
-           AND COALESCE(la.property_code, '') = COALESCE($2::varchar, '')
+         WHERE la.phone = $3::text
+           AND COALESCE(la.property_code, '') = COALESCE($2::text, '')
        )
        RETURNING true AS inserted`,
-      [phone, extracted.propertyCode],
+      [phone, propertyCode, phone],
     );
     actionCreated = (actionResult.rowCount ?? 0) > 0;
   }
