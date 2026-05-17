@@ -1,16 +1,14 @@
-# Deprecated: use /Dockerfile at repository root (EasyPanel default).
-# This file is kept for reference; build from repo root.
-
 # syntax=docker/dockerfile:1
+# Build context: repository root (required by EasyPanel default path)
 
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
+COPY package.json ./
 COPY packages/shared/package.json ./packages/shared/
 COPY apps/api/package.json ./apps/api/
 
-RUN npm ci 2>/dev/null || npm install
+RUN npm install
 
 COPY tsconfig.base.json ./
 COPY packages/shared ./packages/shared
@@ -40,7 +38,7 @@ USER realty
 
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD wget -qO- http://127.0.0.1:3000/health || exit 1
 
 CMD ["node", "apps/api/dist/index.js"]

@@ -17,10 +17,12 @@ Ou terminal one-off com imagem Node apontando para o repo.
 | Campo | Valor |
 |-------|--------|
 | Source | GitHub `ftsmazzo/agente-ia` |
-| Dockerfile path | `apps/api/Dockerfile` |
+| Dockerfile path | `Dockerfile` (raiz do repo — **padrão EasyPanel**) |
 | Build context | `.` (raiz) |
 | Port | `3000` |
 | Health check | `GET /health` |
+
+> **Importante:** variáveis (`BRAND_*`, `DATABASE_URL`, etc.) devem ser **Environment Variables** do container, **não** Build Args — a API lê env em runtime.
 
 ## 3. Variáveis obrigatórias
 

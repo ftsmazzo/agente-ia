@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-05-17
+
+### Fixed
+
+- `Dockerfile` na raiz do repositório para deploy EasyPanel (path padrão)
+- `.dockerignore` para builds mais rápidos
+- Documentação: env vars em runtime, não como build args
+
 ## [0.2.0] - 2026-05-16
 
 ### Added
