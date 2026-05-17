@@ -2,16 +2,16 @@
 
 Export workflows from n8n as JSON into this folder for version control.
 
-## Planned workflows (neutral names)
+## Workflows
 
-| File | Purpose |
-|------|---------|
-| `01-ingest-whatsapp.json` | Webhook Evolution, idempotency, Redis debounce |
-| `02-call-agent.json` | HTTP POST to `@realty/api` `/v1/chat` |
-| `03-send-reply.json` | Evolution send text/audio |
-| `04-sync-chatwoot.json` | Tags, custom attributes, handoff |
-| `05-error-notify.json` | Global error workflow — alerts |
+| File | Status | Descrição |
+|------|--------|-----------|
+| `01-whatsapp-agent.json` | **Pronto para importar** | Webhook Evolution → API `/v1/chat` → sendText |
+| `02-ingest-debounce.json` | Planejado | Debounce Redis / fila |
+| `03-audio.json` | Planejado | Transcrição + TTS |
+| `04-sync-chatwoot.json` | Planejado | Chatwoot handoff |
+| `05-error-notify.json` | Planejado | Alertas de erro |
 
-Use `{{ $env.BRAND_SLUG }}` in paths where client-specific routing is needed.
+Guia completo: [docs/n8n-integracao.md](../docs/n8n-integracao.md)
 
-Workflows are imported manually or via n8n API in a later phase.
+Env vars do n8n: [env.easypanel.example](../env.easypanel.example)

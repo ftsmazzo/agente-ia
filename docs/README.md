@@ -10,6 +10,7 @@
 | [local-development.md](./local-development.md) | Rodar Postgres, Redis e API na máquina local |
 | [deployment-easypanel.md](./deployment-easypanel.md) | Deploy Docker, EasyPanel, novo cliente |
 | [easypanel-deploy.md](./easypanel-deploy.md) | **Primeiro deploy** do repo agente-ia |
+| [n8n-integracao.md](./n8n-integracao.md) | Workflow Evolution → API → WhatsApp |
 | [api-contract.md](./api-contract.md) | Contrato HTTP entre n8n e a API |
 | [versioning.md](./versioning.md) | Versionamento, changelog e releases |
 

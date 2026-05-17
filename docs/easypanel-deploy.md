@@ -86,6 +86,6 @@ curl -X POST https://SEU_DOMINIO/v1/chat \
 
 ## 6. Próximo passo (n8n)
 
-Workflow `02-call-agent` chamando `http://agente-ia-api:3000/v1/chat` com header `X-API-Key`.
+Importar workflow e configurar Evolution: [n8n-integracao.md](./n8n-integracao.md)
 
 Chatwoot: fase posterior.
