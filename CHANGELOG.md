@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-05-17
+
+### Added
+
+- Persona em arquivo separado (`config/prompts/persona.pt-BR.md`) + `PERSONA_PROMPT_PATH`
+- Multi-provedor LLM: `LLM_PROVIDER=openai|anthropic` (Claude via API Anthropic)
+- Classificação de intenção: anúncio com código vs busca por perfil vs geral
+- Preparação bloco `[DADOS DO SISTEMA]` para RAG/tabela (fase 2c)
+- Doc [docs/arquitetura-persona-rag.md](./docs/arquitetura-persona-rag.md)
+
 ## [0.5.0] - 2026-05-17
 
 ### Added

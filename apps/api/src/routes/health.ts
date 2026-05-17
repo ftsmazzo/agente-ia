@@ -26,6 +26,12 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
       service: "agente-ia-api",
       version: process.env.APP_VERSION ?? "0.5.0",
       brand_slug: config.brand.brandSlug,
+      assistant_name: config.brand.assistantName,
+      llm: {
+        enabled: config.llm.enabled,
+        provider: config.llm.provider,
+        model: config.llm.model,
+      },
       checks: { database: dbOk, redis: redisOk },
       features: config.features,
       timestamp: new Date().toISOString(),

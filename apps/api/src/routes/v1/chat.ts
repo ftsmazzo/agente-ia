@@ -1,8 +1,12 @@
 import type { FastifyInstance } from "fastify";
 import { chatRequestSchema, type ChatResponse } from "@realty/shared";
 import { extractFromMessage } from "../../lib/extract-message.js";
+import { classifyMessageIntent } from "../../lib/message-intent.js";
 import { resolveDisplayName } from "../../lib/resolve-display-name.js";
-import { loadSystemPrompt } from "../../lib/prompt-loader.js";
+import {
+  composeSystemPrompt,
+  loadPromptBundle,
+} from "../../lib/prompt-bundle.js";
 import { claimMessage } from "../../services/idempotency.js";
 import {
   recordFailedMessage,
@@ -27,7 +31,19 @@ import {
 
 export async function chatRoutes(app: FastifyInstance): Promise<void> {
   const config = app.config;
-  let cachedPrompt: string | null = null;
+  let cachedSystemPrompt: string | null = null;
+
+  async function getSystemPrompt(): Promise<string> {
+    if (!cachedSystemPrompt) {
+      const bundle = await loadPromptBundle(
+        config.brand,
+        config.systemPromptPath,
+        config.personaPromptPath,
+      );
+      cachedSystemPrompt = composeSystemPrompt(bundle);
+    }
+    return cachedSystemPrompt;
+  }
 
   app.post("/v1/chat", async (request, reply) => {
     const parsed = chatRequestSchema.safeParse(request.body);
@@ -53,12 +69,11 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
           metadata: { skipped: true },
         });
 
-        const response: ChatResponse = {
+        return reply.send({
           shouldReply: false,
           conversationMode: "bot",
           reason: "duplicate_message",
-        };
-        return reply.send(response);
+        } satisfies ChatResponse);
       }
 
       await recordMessageEvent(app.db, {
@@ -77,15 +92,15 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         config.features.humanHandoff &&
         (mode === "human" || mode === "paused")
       ) {
-        const response: ChatResponse = {
+        return reply.send({
           shouldReply: false,
           conversationMode: mode,
           reason: "human_handoff",
-        };
-        return reply.send(response);
+        } satisfies ChatResponse);
       }
 
       const extracted = extractFromMessage(body.message);
+      const intent = classifyMessageIntent(body.message, extracted);
       const displayName = resolveDisplayName(body.metadata, body.message);
 
       await upsertLeadFromMessage(
@@ -94,13 +109,6 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         extracted,
         displayName,
       );
-
-      if (!cachedPrompt) {
-        cachedPrompt = await loadSystemPrompt(
-          config.systemPromptPath,
-          config.brand,
-        );
-      }
 
       const contactName =
         (await getContactDisplayName(app.db, phone)) ?? displayName;
@@ -117,22 +125,25 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
 
         try {
           replyText = await generateAgentReply({
-            systemPrompt: cachedPrompt,
+            systemPrompt: await getSystemPrompt(),
             brand: config.brand,
             history,
             userMessage: body.message,
             context: {
               contactName,
               propertyCode: extracted.propertyCode,
-              hasPropertyInterest: extracted.hasPropertyInterest,
+              intent,
             },
             llm: {
+              provider: config.llm.provider,
               apiKey: config.llm.apiKey,
               model: config.llm.model,
               maxTokens: config.llm.maxTokens,
             },
+            // Fase 2c: propertyKnowledge from RAG + SQL table
+            propertyKnowledge: undefined,
           });
-          reason = "llm_reply";
+          reason = `llm_${config.llm.provider}`;
 
           await appendHistory(
             app.redis,
@@ -168,23 +179,21 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         reason,
       };
 
-      const outboundId = `${body.messageId}:out`;
       await recordMessageEvent(app.db, {
-        externalId: outboundId,
+        externalId: `${body.messageId}:out`,
         phone,
         direction: "outbound",
         status: "queued",
         workflowStep: "chat",
-        metadata: { reason: response.reason },
+        metadata: { reason, intent, model: config.llm.model },
       });
 
       request.log.info(
         {
           messageId: body.messageId,
-          phone: phone.slice(-4).padStart(phone.length, "*"),
-          propertyCode: extracted.propertyCode,
-          mode,
-          reason,
+          intent,
+          provider: config.llm.provider,
+          model: config.llm.model,
         },
         "chat processed",
       );
@@ -198,15 +207,6 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         externalId: body.messageId,
         phone,
         payload: { body },
-        errorMessage: message,
-      }).catch((logErr) => request.log.error({ logErr }, "failed to log DLQ"));
-
-      await recordMessageEvent(app.db, {
-        externalId: body.messageId,
-        phone,
-        direction: "inbound",
-        status: "error",
-        workflowStep: "chat",
         errorMessage: message,
       }).catch(() => undefined);
 

@@ -12,6 +12,7 @@
 | [easypanel-deploy.md](./easypanel-deploy.md) | **Primeiro deploy** do repo agente-ia |
 | [n8n-integracao.md](./n8n-integracao.md) | Workflow Evolution → API → WhatsApp |
 | [fase-2-llm.md](./fase-2-llm.md) | Motor OpenAI + histórico |
+| [arquitetura-persona-rag.md](./arquitetura-persona-rag.md) | Persona, RAG, OpenAI vs Claude |
 | [dados-gravados.md](./dados-gravados.md) | O que vai para o Postgres |
 | [api-contract.md](./api-contract.md) | Contrato HTTP entre n8n e a API |
 | [versioning.md](./versioning.md) | Versionamento, changelog e releases |

@@ -1,16 +1,16 @@
 import type { BrandConfig } from "@realty/shared";
+import type { MessageIntent } from "../lib/message-intent.js";
 import type { ChatTurn } from "./conversation-history.js";
+import {
+  createLlmProvider,
+  historyToMessages,
+  type LlmProviderConfig,
+} from "./llm/index.js";
 
 export type AgentContext = {
   contactName: string | null;
   propertyCode: string | null;
-  hasPropertyInterest: boolean;
-};
-
-export type LlmConfig = {
-  apiKey: string;
-  model: string;
-  maxTokens: number;
+  intent: MessageIntent;
 };
 
 function buildRuntimeContext(
@@ -19,29 +19,58 @@ function buildRuntimeContext(
 ): string {
   const lines = [
     "## Contexto desta conversa (sistema)",
-    `- Telefone do cliente: registrado`,
-    `- Nome conhecido: ${ctx.contactName ?? "ainda não informado"}`,
+    `- Nome do cliente: ${ctx.contactName ?? "ainda não informado"}`,
+    `- Intenção detectada: ${ctx.intent}`,
   ];
 
-  if (ctx.propertyCode) {
-    lines.push(`- Código de imóvel mencionado agora: ${ctx.propertyCode}`);
-    lines.push(
-      "- Você ainda NÃO tem ficha técnica deste imóvel nesta fase. Não invente preço, metragem ou disponibilidade.",
-    );
-    lines.push(
-      "- Confirme o interesse, faça 1–2 perguntas de qualificação (ex.: compra/aluguel, região, urgência) e ofereça encaminhar a um corretor.",
-    );
-  } else if (ctx.hasPropertyInterest) {
-    lines.push("- Cliente demonstrou interesse em imóvel sem código específico.");
-    lines.push("- Peça o código do anúncio (formato AP1234) ou o link, de forma natural.");
+  switch (ctx.intent) {
+    case "property_by_code":
+      lines.push(`- Código do anúvel: ${ctx.propertyCode}`);
+      lines.push(
+        "- Cenário: cliente veio de portal/site e clicou neste anúncio.",
+      );
+      lines.push(
+        "- Use APENAS dados de imóveis marcados como [DADOS DO SISTEMA] abaixo. Se não houver bloco, diga que está verificando e qualifique interesse.",
+      );
+      break;
+    case "property_by_criteria":
+      lines.push(
+        "- Cenário: busca por perfil (bairro, quartos, tipo) — sem código fixo.",
+      );
+      lines.push(
+        "- Use APENAS imóveis listados em [DADOS DO SISTEMA]. Se a lista estiver vazia, faça perguntas para refinar (bairro, quartos, compra/aluguel, faixa de valor).",
+      );
+      lines.push("- Não invente códigos AP#### nem endereços.");
+      break;
+    default:
+      lines.push(
+        "- Conversa geral: acolha, descubra se busca imóvel, venda ou outro assunto.",
+      );
   }
 
   lines.push(
-    `- Você representa ${brand.brandName}. Assistente: ${brand.assistantName}.`,
+    `- Marca: ${brand.brandName} | Assistente: ${brand.assistantName}`,
   );
-  lines.push("- Responda em português do Brasil, mensagem curta para WhatsApp (máx. ~3 parágrafos breves).");
+  lines.push(
+    "- Formato: WhatsApp, português BR, mensagem concisa (até ~3 blocos curtos).",
+  );
 
   return lines.join("\n");
+}
+
+/** Bloco injetado quando RAG/tabela estiver ligado (fase 2c) */
+export function formatPropertyKnowledgeBlock(
+  records: Array<Record<string, unknown>>,
+): string {
+  if (!records.length) {
+    return "[DADOS DO SISTEMA]\nNenhum imóvel encontrado para estes critérios ainda.\n[/DADOS DO SISTEMA]";
+  }
+  const lines = records.map((r, i) => {
+    const code = r.property_code ?? r.codigo ?? "?";
+    const summary = r.summary ?? r.titulo ?? JSON.stringify(r);
+    return `${i + 1}. ${code}: ${summary}`;
+  });
+  return `[DADOS DO SISTEMA]\n${lines.join("\n")}\n[/DADOS DO SISTEMA]`;
 }
 
 export async function generateAgentReply(params: {
@@ -50,49 +79,32 @@ export async function generateAgentReply(params: {
   history: ChatTurn[];
   userMessage: string;
   context: AgentContext;
-  llm: LlmConfig;
+  llm: LlmProviderConfig;
+  propertyKnowledge?: string;
 }): Promise<string> {
-  const systemContent = [
+  const parts = [
     params.systemPrompt,
     "",
     buildRuntimeContext(params.brand, params.context),
-  ].join("\n");
-
-  const messages: Array<{ role: string; content: string }> = [
-    { role: "system", content: systemContent },
-    ...params.history.map((t) => ({ role: t.role, content: t.content })),
-    { role: "user", content: params.userMessage },
   ];
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${params.llm.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: params.llm.model,
-      messages,
-      max_tokens: params.llm.maxTokens,
-      temperature: 0.7,
-    }),
+  if (params.propertyKnowledge) {
+    parts.push("", params.propertyKnowledge);
+  }
+
+  const provider = createLlmProvider(params.llm);
+
+  const messages = [
+    { role: "system" as const, content: parts.join("\n") },
+    ...historyToMessages(params.history),
+    { role: "user" as const, content: params.userMessage },
+  ];
+
+  return provider.complete({
+    messages,
+    maxTokens: params.llm.maxTokens,
+    temperature: 0.7,
   });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`OpenAI ${response.status}: ${errText.slice(0, 200)}`);
-  }
-
-  const data = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-
-  const text = data.choices?.[0]?.message?.content?.trim();
-  if (!text) {
-    throw new Error("OpenAI returned empty content");
-  }
-
-  return text;
 }
 
 export function buildFallbackReply(
