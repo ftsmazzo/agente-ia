@@ -28,6 +28,8 @@ export const chatResponseSchema = z.object({
   replyAudio: z.boolean().optional(),
   conversationMode: z.enum(["bot", "human", "paused"]),
   reason: z.string().optional(),
+  /** Presente quando reason = llm_fallback (debug no n8n) */
+  llmError: z.string().optional(),
 });
 
 export type ChatResponse = z.infer<typeof chatResponseSchema>;

@@ -183,6 +183,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
           config.features.audioReply && body.messageType === "audio",
         conversationMode: "bot",
         reason,
+        ...(llmErrorDetail && { llmError: llmErrorDetail.slice(0, 500) }),
       };
 
       await recordMessageEvent(app.db, {

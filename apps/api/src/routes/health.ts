@@ -31,6 +31,7 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
         enabled: config.llm.enabled,
         provider: config.llm.provider,
         model: config.llm.model,
+        maxTokens: config.llm.maxTokens,
       },
       checks: { database: dbOk, redis: redisOk },
       features: config.features,

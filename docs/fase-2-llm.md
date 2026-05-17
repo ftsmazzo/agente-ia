@@ -15,7 +15,8 @@ Se `OPENAI_API_KEY` não estiver definida, mantém o ack da Fase 1.
 ```env
 OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4o-mini
-OPENAI_MAX_TOKENS=500
+# Para gpt-5-mini: mínimo 2500 (reasoning tokens)
+LLM_MAX_TOKENS=2500
 CHAT_MAX_HISTORY_TURNS=8
 ```
 

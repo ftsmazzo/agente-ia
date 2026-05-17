@@ -5,6 +5,7 @@ import {
   type FeatureFlags,
 } from "@realty/shared";
 import type { LlmProviderId } from "../services/llm/types.js";
+import { resolveOpenAiMaxOutputTokens } from "../services/llm/openai-model.js";
 
 export type LlmSettings = {
   enabled: boolean;
@@ -53,12 +54,26 @@ function loadLlmSettings(): LlmSettings {
       : process.env.OPENAI_MODEL?.trim()) ||
     defaultModel;
 
+  const requestedMax = Number(
+    process.env.LLM_MAX_TOKENS ?? process.env.OPENAI_MAX_TOKENS ?? 0,
+  );
+  const defaultMax = provider === "openai" ? 600 : 600;
+  const maxTokens =
+    provider === "openai"
+      ? resolveOpenAiMaxOutputTokens(
+          model,
+          requestedMax > 0 ? requestedMax : defaultMax,
+        )
+      : requestedMax > 0
+        ? requestedMax
+        : defaultMax;
+
   return {
     enabled: Boolean(apiKey),
     provider,
     apiKey,
     model,
-    maxTokens: Number(process.env.LLM_MAX_TOKENS ?? process.env.OPENAI_MAX_TOKENS ?? 600),
+    maxTokens,
     maxHistoryTurns: Number(process.env.CHAT_MAX_HISTORY_TURNS ?? 8),
   };
 }
