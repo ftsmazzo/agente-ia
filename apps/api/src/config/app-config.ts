@@ -20,7 +20,6 @@ export type LlmSettings = {
 export type PortalAuthConfig = {
   jwtSecret: string;
   corsOrigin: string | null;
-  bootstrapSecret: string | null;
 };
 
 export type AppConfig = {
@@ -133,7 +132,6 @@ export function loadAppConfig(): AppConfig {
     portal: {
       jwtSecret: portalJwtSecret || "dev-portal-jwt-secret",
       corsOrigin: process.env.PORTAL_CORS_ORIGIN?.trim() || null,
-      bootstrapSecret: process.env.PORTAL_BOOTSTRAP_SECRET?.trim() || null,
     },
   };
 }

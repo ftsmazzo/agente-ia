@@ -1,45 +1,60 @@
 # Produto — Portal do cliente
 
-Uma instalação EasyPanel = uma empresa. O **portal** (`painel.<dominio>`) é o serviço Docker `apps/portal`; a **API** continua em `api.<dominio>` ou subdomínio do agente.
+Uma instalação EasyPanel = uma empresa. O **portal** (`painel.<dominio>`) é o serviço Docker `apps/portal`; a **API** no subdomínio do agente.
+
+## Usuários — só variáveis de ambiente (sem curl)
+
+No serviço **agente-ia**, defina na implantação:
+
+```env
+PORTAL_JWT_SECRET=<string longa aleatória>
+PORTAL_CORS_ORIGIN=https://painel.seudominio.com
+
+# Você (implantador) — acesso total
+PORTAL_ADMIN_EMAIL=voce@empresa.com
+PORTAL_ADMIN_PASSWORD=senha-forte-min-8
+PORTAL_ADMIN_NAME=Seu Nome
+
+# Cliente (opcional) — agenda e agente no dia a dia
+PORTAL_CLIENT_EMAIL=gerente@cliente.com
+PORTAL_CLIENT_PASSWORD=outra-senha-forte
+PORTAL_CLIENT_NAME=Gerente Cliente
+```
+
+No **startup do container**, após as migrations, o script `seed-portal-users.mjs`:
+
+1. **Cria** o usuário se o e-mail ainda não existir.
+2. **Não recria** nem altera senha a cada restart (seguro para produção).
+3. Para **trocar senha via env** (redeploy): `PORTAL_SYNC_PASSWORD_FROM_ENV=true` uma vez, depois volte para `false`.
+
+Desligar seed: `PORTAL_SEED_ON_START=false`.
+
+Logs esperados: `[portal-seed] usuário criado: ...` ou `usuário já existe (sem alteração)`.
 
 ## Papéis
 
-| Papel | Quem | Pode |
-|-------|------|------|
-| `installer` | Você (implantador) | Tudo + criar usuários `client` |
-| `client` | Dono/gerente do cliente | Agenda, personalizar agente, ver resumo |
+| Papel | Env | Portal |
+|-------|-----|--------|
+| `installer` | `PORTAL_ADMIN_*` | Tudo + criar usuários extras em Equipe |
+| `client` | `PORTAL_CLIENT_*` | Agenda, agente, dashboard |
 
-Secrets (Postgres, LLM, Evolution, n8n) permanecem só no EasyPanel — não entram no portal.
-
-## Camadas do prompt
-
-| Camada | Onde | Editável no portal |
-|--------|------|-------------------|
-| 0 — Regras da plataforma | Código | Não |
-| 1 — Base + vertical pack | `config/prompts/` | Não |
-| 2 — Empresa, tom, objetivos, lapidação | `app.agent_config` | Sim (`client`) |
-| 3 — Catálogo + RAG + agenda | Postgres / env | Agenda sim; catálogo v1 só leitura |
-
-## Primeiro acesso
-
-1. Defina `PORTAL_JWT_SECRET` e `PORTAL_BOOTSTRAP_SECRET` na API.
-2. `POST /v1/portal/auth/bootstrap` com `{ "secret", "email", "password", "name" }` — cria o primeiro usuário `installer` (só se não existir usuário).
-3. No portal, login com e-mail e senha.
-4. Crie usuários `client` em **Equipe** (somente `installer`).
+Secrets (Postgres, LLM, Evolution) ficam só no EasyPanel — não no portal.
 
 ## Deploy EasyPanel
 
-| Serviço | Dockerfile | Domínio sugerido |
-|---------|------------|------------------|
-| agente-ia (API) | `/Dockerfile` | `assets-agent-ia...` |
+| Serviço | Dockerfile | Domínio |
+|---------|------------|---------|
+| agente-ia | `/Dockerfile` | API |
 | portal | `/apps/portal/Dockerfile` | `painel.<cliente>` |
 
-Variáveis do portal: `VITE_API_URL=https://...` (build arg ou env no build).
+Portal — build arg: `VITE_API_URL=https://URL-DA-API` (sem barra no final).
 
-API: `PORTAL_CORS_ORIGIN=https://painel.seudominio.com`
+## Camadas do prompt
+
+Ver arquitetura em [arquitetura-persona-rag.md](./arquitetura-persona-rag.md). O portal edita `app.agent_config` (empresa, tom, objetivos, regras).
 
 ## Roadmap UI
 
-- v0.12 ✅ Login, dashboard, agenda, personalizar agente
-- v0.13 Catálogo (upload planilha), blackouts na UI
-- v0.14 Monitor de conversas / falhas
+- v0.12 ✅ Login, dashboard, agenda, agente, seed por env
+- v0.13 Catálogo (upload planilha) na UI
+- v0.14 Monitor de conversas

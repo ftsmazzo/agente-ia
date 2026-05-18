@@ -33,6 +33,10 @@ if (process.env.PROPERTIES_IMPORT_ON_START !== "false") {
   runNodeScript("importing property catalog", "/app/scripts/import-properties.mjs");
 }
 
+if (process.env.PORTAL_SEED_ON_START !== "false") {
+  runNodeScript("seeding portal users from env", "/app/scripts/seed-portal-users.mjs");
+}
+
 const cmd = process.argv.slice(2);
 if (cmd.length === 0) {
   console.error("[entrypoint] no command to run");

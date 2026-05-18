@@ -7,7 +7,6 @@ import {
 } from "../../services/agent-config-service.js";
 import {
   authenticatePortalUser,
-  countPortalUsers,
   createPortalUser,
   signPortalToken,
 } from "../../services/portal-auth-service.js";
@@ -23,13 +22,6 @@ import { countActiveProperties } from "../../services/property-catalog-service.j
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8).max(128),
-});
-
-const bootstrapSchema = z.object({
-  secret: z.string().min(8),
-  email: z.string().email(),
-  password: z.string().min(8).max(128),
-  name: z.string().min(2).max(120),
 });
 
 const createUserSchema = z.object({
@@ -100,41 +92,6 @@ export async function portalRoutes(app: FastifyInstance): Promise<void> {
         message: "E-mail ou senha incorretos",
       });
     }
-
-    const token = await signPortalToken(user, portal.jwtSecret);
-    return reply.send({ token, user });
-  });
-
-  app.post("/v1/portal/auth/bootstrap", async (request, reply) => {
-    const parsed = bootstrapSchema.safeParse(request.body);
-    if (!parsed.success) {
-      return reply.status(400).send({
-        error: "validation_error",
-        details: parsed.error.flatten(),
-      });
-    }
-
-    if (
-      !portal.bootstrapSecret ||
-      parsed.data.secret !== portal.bootstrapSecret
-    ) {
-      return reply.status(403).send({ error: "forbidden" });
-    }
-
-    const total = await countPortalUsers(app.db);
-    if (total > 0) {
-      return reply.status(409).send({
-        error: "already_bootstrapped",
-        message: "Já existe usuário no portal",
-      });
-    }
-
-    const user = await createPortalUser(app.db, {
-      email: parsed.data.email,
-      password: parsed.data.password,
-      name: parsed.data.name,
-      role: "installer",
-    });
 
     const token = await signPortalToken(user, portal.jwtSecret);
     return reply.send({ token, user });

@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.1] - 2026-05-18
+
+### Changed
+
+- Usuários do portal criados no startup via env (`PORTAL_ADMIN_*`, `PORTAL_CLIENT_*`) — sem curl/bootstrap
+- Senha só atualiza do env com `PORTAL_SYNC_PASSWORD_FROM_ENV=true` (não recria usuário a cada restart)
+
 ## [0.12.0] - 2026-05-18
 
 ### Added

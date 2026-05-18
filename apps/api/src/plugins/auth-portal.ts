@@ -12,10 +12,7 @@ declare module "fastify" {
   }
 }
 
-const PUBLIC_PATHS = new Set([
-  "/v1/portal/auth/login",
-  "/v1/portal/auth/bootstrap",
-]);
+const PUBLIC_PATHS = new Set(["/v1/portal/auth/login"]);
 
 export async function registerPortalAuth(
   app: FastifyInstance,
