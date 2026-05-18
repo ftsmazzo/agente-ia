@@ -4,6 +4,7 @@ import { registerInternalAuth } from "./plugins/auth-internal.js";
 import { registerInfra, verifyInfra } from "./plugins/infra.js";
 import { healthRoutes } from "./routes/health.js";
 import { chatRoutes } from "./routes/v1/chat.js";
+import { debounceRoutes } from "./routes/v1/debounce.js";
 import { configRoutes } from "./routes/v1/config.js";
 
 async function main(): Promise<void> {
@@ -26,6 +27,7 @@ async function main(): Promise<void> {
   await healthRoutes(app);
   await configRoutes(app);
   await chatRoutes(app);
+  await debounceRoutes(app);
 
   await app.listen({ port: config.port, host: "0.0.0.0" });
 

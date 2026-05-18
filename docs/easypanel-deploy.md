@@ -98,3 +98,15 @@ Redeploy da API. Detalhes: [fase-2-llm.md](./fase-2-llm.md)
 Importar workflow e configurar Evolution: [n8n-integracao.md](./n8n-integracao.md)
 
 Chatwoot: fase posterior.
+
+## 8. Produção (checklist)
+
+Antes de liberar para clientes reais:
+
+1. `RESET_DEV_DATA_ON_START=false` na API
+2. Secrets só em **Environment Variables** (nunca Build Args)
+3. `DEBOUNCE_MS=3000` na API e no n8n
+4. Reimportar `n8n/workflows/01-whatsapp-agent.json` (fluxo com debounce)
+5. Monitorar `GET /health` — campo `ops.warnings` deve estar vazio
+
+Detalhes: [operations-production.md](./operations-production.md) · [debounce.md](./debounce.md)

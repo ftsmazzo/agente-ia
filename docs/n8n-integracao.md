@@ -1,6 +1,6 @@
 # Integração n8n — Evolution → API → WhatsApp
 
-Fase atual: workflow mínimo ponta a ponta (sem debounce/áudio — próxima iteração).
+Workflow ponta a ponta com **debounce** (várias mensagens → uma chamada `/v1/chat`). Áudio: próxima iteração.
 
 ## Pré-requisitos
 
@@ -39,6 +39,7 @@ No app **n8n** do EasyPanel, adicione (Environment, não Build Args):
 | `AGENT_API_KEY` | *(igual `API_INTERNAL_KEY` da API)* | Header `X-API-Key` |
 | `EVOLUTION_BASE_URL` | `http://evolution:8080` | Base da Evolution |
 | `EVOLUTION_API_KEY` | *(sua apikey)* | Header `apikey` na Evolution |
+| `DEBOUNCE_MS` | `3000` | Janela de debounce (igual na API) |
 
 Modelo: [n8n/env.easypanel.example](../n8n/env.easypanel.example)
 
@@ -76,9 +77,12 @@ Eventos esperados no body (padrão Evolution):
 
 ```text
 Webhook → Normalizar → Filtro (não grupo / não fromMe)
-  → POST /v1/chat (API)
+  → POST /v1/debounce/wait-and-merge (aguarda ~3s, consolida texto)
+  → Se process=true → POST /v1/chat (API)
   → Se shouldReply → Evolution sendText
 ```
+
+Execuções com `process=false` (superseded) são normais — só a última mensagem do burst gera resposta.
 
 A API já faz:
 
@@ -107,7 +111,7 @@ curl -X POST http://agent-ia:3000/v1/chat \
 
 | Item | Descrição |
 |------|-----------|
-| Debounce | Wait + Redis (várias mensagens → uma chamada API) |
+| Debounce | ✅ API `/v1/debounce/wait-and-merge` + Redis |
 | Áudio | Transcrição + resposta ElevenLabs |
 | Erro global | Workflow `05-error-notify` |
 | Chatwoot | Bridge + handoff visual |

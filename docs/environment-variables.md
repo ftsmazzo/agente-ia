@@ -56,6 +56,14 @@ Referência para `.env` local e EasyPanel. Copie de `.env.example`.
 | `DB_WAIT_DELAY_MS` | `2000` | Pausa entre tentativas (ms) |
 | `APP_ROOT` | `/app` | Raiz da app no container (interno) |
 
+## Debounce (WhatsApp)
+
+| Variável | Padrão | Descrição |
+|----------|--------|-----------|
+| `DEBOUNCE_MS` | `3000` | Janela após última mensagem antes de chamar o LLM |
+
+n8n deve usar o mesmo valor. Ver [debounce.md](./debounce.md).
+
 ## Dev: zerar dados no deploy
 
 | Variável | Padrão | Descrição |

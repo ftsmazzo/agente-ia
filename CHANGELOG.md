@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-05-18
+
+### Added
+
+- `POST /v1/debounce/wait-and-merge` — consolida mensagens seguidas no Redis antes do LLM
+- `DEBOUNCE_MS` (padrão 3000)
+- `/health`: `debounce`, `ops.warnings`, `ops.failed_messages_unresolved`
+- [docs/operations-production.md](./docs/operations-production.md), [docs/debounce.md](./docs/debounce.md)
+
+### Changed
+
+- Workflow n8n `01-whatsapp-agent.json` usa debounce antes de `/v1/chat`
+- README roadmap atualizado (RAG + debounce ✅)
+
 ## [0.7.5] - 2026-05-18
 
 ### Added

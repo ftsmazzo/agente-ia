@@ -79,10 +79,14 @@ Guia passo a passo: [docs/easypanel-deploy.md](./docs/easypanel-deploy.md)
 | 1 — Postgres, Redis, idempotência, lead upsert | ✅ |
 | 1b — Migrations automáticas no deploy | ✅ |
 | 2 — Workflow n8n mínimo (Evolution → API) | ✅ |
-| 2b — Motor LLM (OpenAI + histórico Redis) | ✅ deploy + OPENAI_API_KEY |
-| 3 — RAG imóveis + debounce + áudio | 🔜 |
+| 2b — Motor LLM (OpenAI + histórico Redis) | ✅ |
+| 2c — RAG imóveis + fichas AP#### | ✅ |
+| 3a — Debounce WhatsApp | ✅ (`/v1/debounce/wait-and-merge`) |
+| 3b — Áudio (transcrição + TTS) | 🔜 |
 | 4 — Chatwoot handoff | 🔜 |
-| 4 — Admin UI (opcional) | 🔜 |
+| 5 — Admin UI (opcional) | 🔜 |
+
+Checklist produção: [docs/operations-production.md](./docs/operations-production.md)
 
 ## Licença
 
