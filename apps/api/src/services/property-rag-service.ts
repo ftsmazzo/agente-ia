@@ -7,6 +7,10 @@ import {
   type ParsedListing,
 } from "../lib/rag-csv-listings.js";
 import {
+  extractBairroFromSpreadsheetText,
+  extractCodeFromSpreadsheetText,
+} from "../lib/rag-spreadsheet-row.js";
+import {
   criteriaFromHistory,
   type RagSearchCriteria,
 } from "../lib/rag-search-criteria.js";
@@ -55,10 +59,14 @@ export function buildRagQuery(params: {
     return parts.join(" ");
   }
 
-  parts.push(params.userMessage.trim());
+  const msg = params.userMessage.trim();
+  parts.push(msg);
 
+  // Só acrescenta bairro se não estiver já na mensagem (evita query poluída)
   for (const bairro of params.criteria.neighborhoods) {
-    parts.push(`bairro ${bairro}`);
+    if (!msg.toLowerCase().includes(bairro.toLowerCase())) {
+      parts.push(`bairro ${bairro}`);
+    }
   }
   if (params.criteria.bedrooms !== null) {
     parts.push(`${params.criteria.bedrooms} quartos`);
@@ -84,6 +92,8 @@ function effectiveTopK(rag: RagSettings, intent: MessageIntent): number {
 function extractPropertyCode(...texts: Array<string | undefined>): string | null {
   for (const text of texts) {
     if (!text) continue;
+    const fromSheet = extractCodeFromSpreadsheetText(text);
+    if (fromSheet) return fromSheet;
     const match = text.match(PROPERTY_CODE);
     if (match?.[1]) return match[1].toUpperCase();
   }
@@ -91,10 +101,11 @@ function extractPropertyCode(...texts: Array<string | undefined>): string | null
 }
 
 function inferBairroFromRow(raw: string): string | null {
-  const match = raw.match(
-    /"[^"]*",(?:[^,]*,)?([^,]+),[^,]*,Ribeirão Preto/i,
+  return (
+    extractBairroFromSpreadsheetText(raw) ??
+    raw.match(/"[^"]*",(?:[^,]*,)?([^,]+),[^,]*,Ribeirão Preto/i)?.[1]?.trim() ??
+    null
   );
-  return match?.[1]?.trim() ?? null;
 }
 
 function inferTipoFromRow(raw: string): string | null {
@@ -165,16 +176,30 @@ function buildKnowledgeBlock(
   records: Array<Record<string, unknown>>,
   criteria: RagSearchCriteria,
   parsedFromCsv: boolean,
+  ragAnswer: string | null,
 ): string {
+  const sections: string[] = [];
+
+  if (ragAnswer?.trim()) {
+    sections.push(
+      "[RESUMO DA BASE DE CONHECIMENTO]\n" +
+        sanitizeSnippet(ragAnswer).slice(0, 1200) +
+        "\n[/RESUMO DA BASE DE CONHECIMENTO]",
+    );
+  }
+
   if (records.length === 0 && criteria.neighborhoods.length > 0) {
     const bairros = criteria.neighborhoods.join(", ");
     const extra = criteria.bedrooms
       ? `, ${criteria.bedrooms} quartos`
       : "";
-    return `[DADOS DO SISTEMA]
-Nenhum imóvel encontrado nos trechos indexados para: ${bairros}${extra}.
-Se o catálogo tiver esse bairro, vale reindexar com um documento por imóvel (campo Bairro explícito) ou aumentar RAG_TOP_K.
-[/DADOS DO SISTEMA]`;
+    sections.push(
+      `[DADOS DO SISTEMA]
+Nenhum trecho indexado corresponde a: ${bairros}${extra}.
+Use o resumo acima se trouxer imóveis; senão qualifique o cliente sem inventar anúncios.
+[/DADOS DO SISTEMA]`,
+    );
+    return sections.join("\n\n");
   }
 
   const header =
@@ -182,7 +207,8 @@ Se o catálogo tiver esse bairro, vale reindexar com um documento por imóvel (c
       ? `[Critérios: ${criteria.neighborhoods.join(", ")}${criteria.bedrooms ? `; ${criteria.bedrooms} quartos` : ""}]\n`
       : "";
 
-  return header + formatPropertyKnowledgeBlock(records);
+  sections.push(header + formatPropertyKnowledgeBlock(records));
+  return sections.join("\n\n");
 }
 
 export async function fetchPropertyKnowledgeFromRag(params: {
@@ -199,6 +225,7 @@ export async function fetchPropertyKnowledgeFromRag(params: {
       ragQuery: string;
       parsedListings: number;
       matchedListings: number;
+      hadRagAnswer: boolean;
     }
   | undefined
 > {
@@ -238,7 +265,7 @@ export async function fetchPropertyKnowledgeFromRag(params: {
 
   let records = sourcesToRecords(result.sources, params.brand, criteria);
 
-  if (records.length === 0 && result.answer) {
+  if (records.length === 0 && result.answer && !result.sources.length) {
     records = [
       {
         property_code:
@@ -250,10 +277,16 @@ export async function fetchPropertyKnowledgeFromRag(params: {
   }
 
   return {
-    block: buildKnowledgeBlock(records, criteria, parsedFromCsv),
+    block: buildKnowledgeBlock(
+      records,
+      criteria,
+      parsedFromCsv,
+      result.answer,
+    ),
     sourceCount: records.length,
     ragQuery,
     parsedListings: allListings.length,
     matchedListings: matched.length,
+    hadRagAnswer: Boolean(result.answer),
   };
 }

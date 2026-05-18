@@ -88,7 +88,25 @@ export function criteriaFromHistory(
     .filter((t) => t.role === "user")
     .slice(-4)
     .map((t) => t.content);
-  return extractRagSearchCriteria(userMessage, recentUser);
+
+  const current = extractRagSearchCriteria(userMessage, []);
+  const withHistory = extractRagSearchCriteria(userMessage, recentUser);
+
+  // Bairro: prioriza a mensagem atual (evita misturar Centro + Planalto na query RAG)
+  const neighborhoods =
+    current.neighborhoods.length > 0
+      ? current.neighborhoods
+      : withHistory.neighborhoods;
+
+  return {
+    neighborhoods,
+    bedrooms: current.bedrooms ?? withHistory.bedrooms,
+    bathrooms: current.bathrooms ?? withHistory.bathrooms,
+    propertyTypes:
+      current.propertyTypes.length > 0
+        ? current.propertyTypes
+        : withHistory.propertyTypes,
+  };
 }
 
 export function textMatchesNeighborhood(
@@ -98,9 +116,15 @@ export function textMatchesNeighborhood(
   const h = normalizeForMatch(haystack);
   const n = normalizeForMatch(neighborhood);
   if (!n) return false;
+
+  const bairroField = h.match(/bairro:\s*([^|]+)/i)?.[1]?.trim();
+  if (bairroField && normalizeForMatch(bairroField).includes(n)) {
+    return true;
+  }
+
   if (h.includes(n)) return true;
 
-  // "Centro" exige vírgula ao redor para reduzir falso positivo em palavras compostas
+  // "Centro" em CSV legado: vírgula ao redor
   if (n === "centro") {
     return /,centro,|,centro | centro,| centro /.test(h);
   }

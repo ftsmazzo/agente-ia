@@ -8,8 +8,13 @@ export type ParsedListing = {
   raw: string;
 };
 
-/** Extrai linhas "Ativo,AP####,..." de chunks CSV indexados no RAG. */
+import { parseSpreadsheetRowChunks } from "./rag-spreadsheet-row.js";
+
+/** Extrai imóveis de chunks RAG (formato planilha por linha ou CSV legado). */
 export function parseListingsFromChunk(content: string): ParsedListing[] {
+  const spreadsheet = parseSpreadsheetRowChunks(content);
+  if (spreadsheet.length > 0) return spreadsheet;
+
   const listings: ParsedListing[] = [];
   const indices: Array<{ code: string; start: number }> = [];
 

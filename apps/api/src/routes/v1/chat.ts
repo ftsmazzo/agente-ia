@@ -28,7 +28,10 @@ import {
   buildFallbackReply,
   generateAgentReply,
 } from "../../services/agent-service.js";
-import { fetchPropertyKnowledgeFromRag } from "../../services/property-rag-service.js";
+import {
+  fetchPropertyKnowledgeFromRag,
+  shouldQueryPropertyRag,
+} from "../../services/property-rag-service.js";
 
 export async function chatRoutes(app: FastifyInstance): Promise<void> {
   const config = app.config;
@@ -134,7 +137,16 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
       );
 
       let propertyKnowledge: string | undefined;
-      if (config.rag.enabled) {
+      let ragSkipReason: string | undefined;
+      if (!config.rag.enabled) {
+        ragSkipReason = config.features.propertyRag
+          ? "rag_not_configured"
+          : "feature_property_rag_off";
+      } else if (!shouldQueryPropertyRag(config.rag, intent)) {
+        ragSkipReason = `intent_${intent}`;
+      }
+
+      if (config.rag.enabled && shouldQueryPropertyRag(config.rag, intent)) {
         try {
           const ragResult = await fetchPropertyKnowledgeFromRag({
             rag: config.rag,
@@ -151,6 +163,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
               ragQuery: ragResult.ragQuery,
               parsedListings: ragResult.parsedListings,
               matchedListings: ragResult.matchedListings,
+              hadRagAnswer: ragResult.hadRagAnswer,
             };
           }
         } catch (ragErr) {
@@ -236,6 +249,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
           intent,
           model: config.llm.model,
           ...(ragMeta && { rag: ragMeta }),
+          ...(ragSkipReason && { ragSkipReason }),
           ...(llmErrorDetail && { llmError: llmErrorDetail.slice(0, 500) }),
         },
       });
