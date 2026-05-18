@@ -100,13 +100,34 @@ export function criteriaFromHistory(
 
   return {
     neighborhoods,
-    bedrooms: current.bedrooms ?? withHistory.bedrooms,
-    bathrooms: current.bathrooms ?? withHistory.bathrooms,
+    // Quartos/banheiros só da mensagem atual (evita SofIA confirmar perfil antigo)
+    bedrooms: current.bedrooms,
+    bathrooms: current.bathrooms,
     propertyTypes:
       current.propertyTypes.length > 0
         ? current.propertyTypes
         : withHistory.propertyTypes,
   };
+}
+
+/** Texto curto só com o que o cliente disse na mensagem atual (confirmação no WhatsApp). */
+export function formatQualificationHint(
+  criteria: RagSearchCriteria,
+): string | null {
+  const parts: string[] = [];
+  if (criteria.neighborhoods.length > 0) {
+    parts.push(`bairro ${criteria.neighborhoods.join(" ou ")}`);
+  }
+  if (criteria.propertyTypes.length > 0) {
+    parts.push(criteria.propertyTypes.join(", "));
+  }
+  if (criteria.bedrooms !== null) {
+    parts.push(`${criteria.bedrooms} quarto(s)`);
+  }
+  if (criteria.bathrooms !== null) {
+    parts.push(`${criteria.bathrooms} banheiro(s)`);
+  }
+  return parts.length > 0 ? parts.join("; ") : null;
 }
 
 export function textMatchesNeighborhood(

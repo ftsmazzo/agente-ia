@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.4] - 2026-05-18
+
+### Added
+
+- `RESET_DEV_DATA_ON_START`: trunca Postgres (app.*) e `FLUSHDB` Redis no startup (dev/testes)
+
+### Fixed
+
+- RAG: timeout padrão 45s (evita abort em ~17s enquanto o RAG ainda responde)
+- Bloco `[DADOS DO SISTEMA]`: resposta do RAG e registros no mesmo bloco (persona ignorava `[RESUMO]`)
+- Não injeta “nenhum imóvel” quando o `answer` do RAG já traz AP####
+- Critérios de quartos/banheiros só da mensagem atual (histórico não polui confirmação da SofIA)
+- Instrução explícita ao LLM quando há listagens no bloco
+
 ## [0.7.3] - 2026-05-18
 
 ### Fixed

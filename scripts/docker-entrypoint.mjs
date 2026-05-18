@@ -25,6 +25,10 @@ if (runMigrations) {
   console.log("[entrypoint] RUN_MIGRATIONS_ON_START=false, skipping migrations");
 }
 
+if (process.env.RESET_DEV_DATA_ON_START === "true") {
+  runNodeScript("resetting dev data (Postgres + Redis)", "/app/scripts/reset-dev-data.mjs");
+}
+
 const cmd = process.argv.slice(2);
 if (cmd.length === 0) {
   console.error("[entrypoint] no command to run");

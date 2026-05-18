@@ -40,11 +40,11 @@ COPY --from=builder /app/config/prompts ./config/prompts
 
 # Migrations run automatically on container start (docker-entrypoint.mjs)
 COPY db/migrations ./db/migrations
-COPY scripts/wait-for-database.mjs scripts/run-migrations.mjs scripts/docker-entrypoint.mjs ./scripts/
+COPY scripts/wait-for-database.mjs scripts/run-migrations.mjs scripts/reset-dev-data.mjs scripts/docker-entrypoint.mjs ./scripts/
 
 ENV APP_ROOT=/app
 ENV RUN_MIGRATIONS_ON_START=true
-ENV APP_VERSION=0.7.3
+ENV APP_VERSION=0.7.4
 
 RUN chown -R realty:realty /app/db /app/scripts
 

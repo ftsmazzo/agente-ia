@@ -27,7 +27,7 @@ RAG_KNOWLEDGE_BASE_ID=30001
 
 # Opcionais
 RAG_TOP_K=3
-RAG_TIMEOUT_MS=15000
+RAG_TIMEOUT_MS=45000
 ```
 
 Gere a chave em [API Keys](https://rag.fabricadosdados.ia.br/api-keys).

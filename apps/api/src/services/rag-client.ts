@@ -83,6 +83,13 @@ export async function queryKnowledgeBase(params: {
       sources,
       processingTime: parsed.data?.processingTime,
     };
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error(
+        `RAG timeout after ${params.timeoutMs}ms (aumente RAG_TIMEOUT_MS se a base demorar)`,
+      );
+    }
+    throw err;
   } finally {
     clearTimeout(timer);
   }

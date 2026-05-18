@@ -2,6 +2,10 @@ import type { FastifyInstance } from "fastify";
 import { chatRequestSchema, type ChatResponse } from "@realty/shared";
 import { extractFromMessage } from "../../lib/extract-message.js";
 import { classifyMessageIntent } from "../../lib/message-intent.js";
+import {
+  extractRagSearchCriteria,
+  formatQualificationHint,
+} from "../../lib/rag-search-criteria.js";
 import { resolveDisplayName } from "../../lib/resolve-display-name.js";
 import {
   composeSystemPrompt,
@@ -177,6 +181,10 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
 
       if (config.llm.enabled) {
         try {
+          const currentCriteria = extractRagSearchCriteria(body.message, []);
+          const qualificationHint =
+            formatQualificationHint(currentCriteria) ?? undefined;
+
           replyText = await generateAgentReply({
             systemPrompt: await getSystemPrompt(),
             brand: config.brand,
@@ -186,6 +194,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
               contactName,
               propertyCode: extracted.propertyCode,
               intent,
+              qualificationHint,
             },
             llm: {
               provider: config.llm.provider,

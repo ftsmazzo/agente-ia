@@ -1,6 +1,7 @@
 import type { BrandConfig } from "@realty/shared";
 import type { MessageIntent } from "../lib/message-intent.js";
 import type { ChatTurn } from "./conversation-history.js";
+import { textHasPropertyListings } from "../lib/rag-listing-detect.js";
 import {
   createLlmProvider,
   historyToMessages,
@@ -11,6 +12,8 @@ export type AgentContext = {
   contactName: string | null;
   propertyCode: string | null;
   intent: MessageIntent;
+  /** Só critérios extraídos da mensagem atual (não do histórico Redis). */
+  qualificationHint?: string;
 };
 
 function buildRuntimeContext(
@@ -41,6 +44,15 @@ function buildRuntimeContext(
         "- Use APENAS imóveis listados em [DADOS DO SISTEMA]. Se a lista estiver vazia, faça perguntas para refinar (bairro, quartos, compra/aluguel, faixa de valor).",
       );
       lines.push("- Não invente códigos AP#### nem endereços.");
+      if (ctx.qualificationHint) {
+        lines.push(
+          `- Nesta mensagem o cliente mencionou: ${ctx.qualificationHint}.`,
+        );
+      } else {
+        lines.push(
+          "- Nesta mensagem o cliente não detalhou quartos/banheiros — não confirme perfil que só apareceu em mensagens antigas.",
+        );
+      }
       break;
     default:
       lines.push(
@@ -104,6 +116,18 @@ export async function generateAgentReply(params: {
 
   if (params.propertyKnowledge) {
     parts.push("", params.propertyKnowledge);
+    if (
+      params.context.intent === "property_by_criteria" &&
+      textHasPropertyListings(params.propertyKnowledge)
+    ) {
+      parts.push(
+        "",
+        "## Instrução obrigatória",
+        "O bloco [DADOS DO SISTEMA] acima contém anúncios reais. Apresente até 3 opções (código AP, valor, bairro).",
+        "É proibido dizer que não há imóveis no bairro se o bloco listar opções.",
+        "Não confirme quartos, banheiros ou vagas que o cliente não disse na mensagem atual.",
+      );
+    }
   }
 
   const provider = createLlmProvider(params.llm);

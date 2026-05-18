@@ -152,10 +152,6 @@ function sourcesToRecords(
     return filtered.map((l) => listingToRecord(l, brand));
   }
 
-  if (allListings.length > 0 && criteria.neighborhoods.length > 0) {
-    return [];
-  }
-
   const website = brand.brandWebsite?.replace(/\/$/, "") ?? "";
   return sources.map((source) => {
     const code =
@@ -178,37 +174,42 @@ function buildKnowledgeBlock(
   parsedFromCsv: boolean,
   ragAnswer: string | null,
 ): string {
-  const sections: string[] = [];
+  const innerParts: string[] = [];
+  const answerText = ragAnswer?.trim() ?? "";
 
-  if (ragAnswer?.trim()) {
-    sections.push(
-      "[RESUMO DA BASE DE CONHECIMENTO]\n" +
-        sanitizeSnippet(ragAnswer).slice(0, 1200) +
-        "\n[/RESUMO DA BASE DE CONHECIMENTO]",
-    );
+  if (answerText) {
+    innerParts.push(sanitizeSnippet(answerText).slice(0, 2000));
   }
 
-  if (records.length === 0 && criteria.neighborhoods.length > 0) {
+  if (records.length > 0) {
+    const recordsBlock = formatPropertyKnowledgeBlock(records);
+    const inner = recordsBlock
+      .replace(/^\[DADOS DO SISTEMA\]\n?/, "")
+      .replace(/\n?\[\/DADOS DO SISTEMA\]$/, "")
+      .trim();
+    if (inner) innerParts.push(inner);
+  }
+
+  if (innerParts.length > 0) {
+    const header =
+      parsedFromCsv && criteria.neighborhoods.length > 0
+        ? `[Critérios: ${criteria.neighborhoods.join(", ")}${criteria.bedrooms ? `; ${criteria.bedrooms} quartos` : ""}]\n`
+        : "";
+    return `${header}[DADOS DO SISTEMA]\n${innerParts.join("\n\n")}\n[/DADOS DO SISTEMA]`;
+  }
+
+  if (criteria.neighborhoods.length > 0) {
     const bairros = criteria.neighborhoods.join(", ");
     const extra = criteria.bedrooms
       ? `, ${criteria.bedrooms} quartos`
       : "";
-    sections.push(
-      `[DADOS DO SISTEMA]
-Nenhum trecho indexado corresponde a: ${bairros}${extra}.
-Use o resumo acima se trouxer imóveis; senão qualifique o cliente sem inventar anúncios.
-[/DADOS DO SISTEMA]`,
-    );
-    return sections.join("\n\n");
+    return `[DADOS DO SISTEMA]
+Nenhum imóvel encontrado na base para: ${bairros}${extra}.
+Qualifique o cliente sem inventar anúncios.
+[/DADOS DO SISTEMA]`;
   }
 
-  const header =
-    parsedFromCsv && criteria.neighborhoods.length > 0
-      ? `[Critérios: ${criteria.neighborhoods.join(", ")}${criteria.bedrooms ? `; ${criteria.bedrooms} quartos` : ""}]\n`
-      : "";
-
-  sections.push(header + formatPropertyKnowledgeBlock(records));
-  return sections.join("\n\n");
+  return "";
 }
 
 export async function fetchPropertyKnowledgeFromRag(params: {

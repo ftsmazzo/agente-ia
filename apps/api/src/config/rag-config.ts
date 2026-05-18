@@ -19,7 +19,7 @@ export function loadRagSettings(
     "";
 
   const topK = Number(process.env.RAG_TOP_K ?? 5);
-  const timeoutMs = Number(process.env.RAG_TIMEOUT_MS ?? 15_000);
+  const timeoutMs = Number(process.env.RAG_TIMEOUT_MS ?? 45_000);
 
   const enabled =
     propertyRagFeature && Boolean(apiKey && knowledgeBaseId && baseUrl);
@@ -31,6 +31,6 @@ export function loadRagSettings(
     knowledgeBaseId,
     topK: Number.isFinite(topK) && topK > 0 ? Math.min(topK, 10) : 3,
     timeoutMs:
-      Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 15_000,
+      Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 45_000,
   };
 }

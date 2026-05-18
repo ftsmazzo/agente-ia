@@ -56,6 +56,17 @@ Referência para `.env` local e EasyPanel. Copie de `.env.example`.
 | `DB_WAIT_DELAY_MS` | `2000` | Pausa entre tentativas (ms) |
 | `APP_ROOT` | `/app` | Raiz da app no container (interno) |
 
+## Dev: zerar dados no deploy
+
+| Variável | Padrão | Descrição |
+|----------|--------|-----------|
+| `RESET_DEV_DATA_ON_START` | `false` | Trunca `app.*` (exceto migrations) e `FLUSHDB` Redis ao subir o container |
+| `ALLOW_DEV_DATA_RESET` | — | Obrigatório se `NODE_ENV=production` e quiser reset |
+
+Após validar o deploy, volte `RESET_DEV_DATA_ON_START=false` para não apagar dados a cada restart.
+
+Local: `RESET_DEV_DATA_ON_START=true npm run db:reset-dev`
+
 ## Integrações (URLs internas Docker)
 
 | Variável | Uso |
