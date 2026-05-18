@@ -29,16 +29,23 @@ async function main(): Promise<void> {
   await registerInfra(app, config);
   await verifyInfra(config);
 
-  const corsOrigin =
-    config.portal.corsOrigin ??
-    (config.nodeEnv === "development" ? true : false);
+  const corsOrigins = config.portal.corsOrigins;
+  if (config.nodeEnv === "production" && corsOrigins === false) {
+    app.log.warn(
+      "PORTAL_CORS_ORIGIN nao definido — o painel web nao conseguira chamar a API (Failed to fetch)",
+    );
+  }
 
   await app.register(cors, {
-    origin: corsOrigin,
+    origin: corsOrigins,
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   });
+
+  if (Array.isArray(corsOrigins)) {
+    app.log.info({ origins: corsOrigins }, "portal CORS");
+  }
 
   await app.register(multipart, {
     limits: { fileSize: 12 * 1024 * 1024, files: 1 },

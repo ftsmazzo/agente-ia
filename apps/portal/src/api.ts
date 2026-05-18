@@ -1,4 +1,20 @@
-const API_BASE = import.meta.env.VITE_API_URL?.replace(/\/$/, "") ?? "";
+declare global {
+  interface Window {
+    __PORTAL_API_URL__?: string;
+  }
+}
+
+function resolveApiBase(): string {
+  const fromRuntime = window.__PORTAL_API_URL__?.trim();
+  const fromBuild = import.meta.env.VITE_API_URL?.trim();
+  return (fromRuntime || fromBuild || "").replace(/\/$/, "");
+}
+
+const API_BASE = resolveApiBase();
+
+export function getApiBaseUrl(): string {
+  return API_BASE;
+}
 
 export type PortalUser = {
   id: number;
@@ -92,6 +108,12 @@ async function request<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
+  if (!API_BASE) {
+    throw new Error(
+      "API não configurada. No EasyPanel, serviço portal: defina PORTAL_API_URL=https://sua-api (Environment, não só Build Arg).",
+    );
+  }
+
   const headers = new Headers(options.headers);
   if (!(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
@@ -99,10 +121,17 @@ async function request<T>(
   const t = token();
   if (t) headers.set("Authorization", `Bearer ${t}`);
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+    });
+  } catch {
+    throw new Error(
+      `Não foi possível conectar à API (${API_BASE}). Confira: API online, PORTAL_API_URL no portal e PORTAL_CORS_ORIGIN na API = URL exata do painel (https://...).`,
+    );
+  }
 
   if (res.status === 401) {
     setToken(null);
@@ -149,7 +178,11 @@ export const api = {
   getAgentConfig() {
     return request<{ config: AgentConfig }>("/v1/portal/agent-config");
   },
-  patchAgentConfig(body: Partial<AgentConfig> & { objectives?: AgentConfig["objectives"] }) {
+  patchAgentConfig(
+    body: Partial<AgentConfig> & {
+      objectives?: AgentConfig["objectives"];
+    },
+  ) {
     return request<{ config: AgentConfig }>("/v1/portal/agent-config", {
       method: "PATCH",
       body: JSON.stringify(body),

@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.1] - 2026-05-18
+
+### Fixed
+
+- Portal: `PORTAL_API_URL` em runtime (`config.js` no startup) — evita Failed to fetch quando o build perde `VITE_API_URL`
+- API: `PORTAL_CORS_ORIGIN` aceita várias URLs separadas por vírgula; aviso no log se faltar em produção
+- Mensagens de erro do painel mais claras (API URL, CORS)
+
 ## [0.13.0] - 2026-05-18
 
 ### Added

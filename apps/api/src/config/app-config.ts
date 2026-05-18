@@ -19,8 +19,22 @@ export type LlmSettings = {
 
 export type PortalAuthConfig = {
   jwtSecret: string;
-  corsOrigin: string | null;
+  /** Lista de origens ou `true` (dev) / `false` (bloqueia cross-origin) */
+  corsOrigins: string[] | boolean;
 };
+
+/** PORTAL_CORS_ORIGIN — uma URL ou várias separadas por vírgula */
+export function parsePortalCorsOrigins(nodeEnv: string): string[] | boolean {
+  const raw = process.env.PORTAL_CORS_ORIGIN?.trim();
+  if (!raw) {
+    return nodeEnv === "development" ? true : false;
+  }
+  const list = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return list.length > 0 ? list : false;
+}
 
 export type AppConfig = {
   port: number;
@@ -131,7 +145,9 @@ export function loadAppConfig(): AppConfig {
     rag,
     portal: {
       jwtSecret: portalJwtSecret || "dev-portal-jwt-secret",
-      corsOrigin: process.env.PORTAL_CORS_ORIGIN?.trim() || null,
+      corsOrigins: parsePortalCorsOrigins(
+        process.env.NODE_ENV ?? "development",
+      ),
     },
   };
 }

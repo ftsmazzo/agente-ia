@@ -18,10 +18,16 @@ RUN npm run build
 
 FROM nginx:alpine AS runner
 
+RUN apk add --no-cache wget
+
 COPY apps/portal/nginx.conf /etc/nginx/conf.d/default.conf
+COPY apps/portal/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 COPY --from=builder /app/apps/portal/dist /usr/share/nginx/html
 
 EXPOSE 80
 
 HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
   CMD wget -qO- http://127.0.0.1/ || exit 1
+
+ENTRYPOINT ["/docker-entrypoint.sh"]

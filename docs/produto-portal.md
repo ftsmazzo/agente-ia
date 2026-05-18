@@ -47,7 +47,12 @@ Secrets (Postgres, LLM, Evolution) ficam só no EasyPanel — não no portal.
 | agente-ia | `/Dockerfile` | API |
 | portal | `/apps/portal/Dockerfile` | `painel.<cliente>` |
 
-Portal — build arg: `VITE_API_URL=https://URL-DA-API` (sem barra no final).
+| Onde | Variável | Valor |
+|------|----------|--------|
+| Serviço **portal** | `PORTAL_API_URL` | URL da API (Environment, runtime) |
+| Serviço **agente-ia** | `PORTAL_CORS_ORIGIN` | URL exata do painel (`https://painel...`) |
+
+Se aparecer **Failed to fetch**: confira `PORTAL_API_URL` no portal e `PORTAL_CORS_ORIGIN` na API (mesmo `https`, sem barra no final).
 
 ## Camadas do prompt
 
