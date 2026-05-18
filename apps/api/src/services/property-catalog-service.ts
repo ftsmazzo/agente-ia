@@ -98,16 +98,7 @@ function buildCriteriaRowText(p: PropertyRecord): string {
   return parts.filter(Boolean).join(" | ");
 }
 
-export function propertyToListing(
-  p: PropertyRecord,
-  brand: BrandConfig,
-): ParsedListing {
-  const link =
-    p.link ??
-    (brand.brandWebsite
-      ? `${brand.brandWebsite.replace(/\/$/, "")}/imovel/${p.property_code}`
-      : undefined);
-
+export function propertyToListing(p: PropertyRecord): ParsedListing {
   return {
     property_code: p.property_code,
     raw: buildCriteriaRowText(p),
