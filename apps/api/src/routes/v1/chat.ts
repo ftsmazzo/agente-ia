@@ -50,8 +50,7 @@ import {
 import {
   acceptsVisitAffirmative,
   botMessageInvitesVisit,
-  prefersQualificationAtMeeting,
-  prefersQualificationBeforeMeeting,
+  resolveQualificationChoice,
 } from "../../lib/scheduling-intent.js";
 import {
   bookAppointment,
@@ -72,9 +71,16 @@ type SchedulingConversationState = {
   visitPrompted?: boolean;
   offeredSlots?: string[];
   appointmentId?: number;
+  startsAt?: string;
   propertyCode?: string | null;
+  qualificationRetries?: number;
   updatedAt?: string;
 };
+
+function firstName(name: string | null | undefined): string | null {
+  if (!name?.trim()) return null;
+  return name.trim().split(/\s+/)[0] ?? null;
+}
 
 function getSchedulingState(
   metadata: Record<string, unknown> | undefined,
@@ -108,13 +114,39 @@ function buildBookedReply(
   location: string,
   contactName?: string | null,
 ): string {
-  const who = contactName ? `${contactName}, ` : "";
-  return `Perfeito, ${who}sua visita está confirmada na ${brandName} para ${label}.\n\nLocal: ${location}.\n\nSe quiser, posso anotar aqui algumas informações rápidas para agilizar o atendimento antes da visita — ou prefere conversar sobre tudo pessoalmente no dia? O que fica melhor para você?`;
+  const who = firstName(contactName);
+  const greeting = who ? `${who}, ` : "";
+  return `Perfeito, ${greeting}sua visita está confirmada na ${brandName} para ${label}.\n\nLocal: ${location}.\n\nSe quiser, posso anotar aqui algumas informações rápidas para agilizar o atendimento antes da visita — ou prefere conversar sobre tudo pessoalmente no dia? O que fica melhor para você?`;
 }
 
-function buildQualificationClosedReply(contactName?: string | null): string {
-  const who = contactName ? `${contactName}, ` : "";
-  return `Combinado, ${who}conversamos com calma na visita sobre financiamento, simulações e o que mais precisar. Qualquer dúvida até lá, é só me chamar.`;
+function visitLabelFromState(
+  schedulingState: SchedulingConversationState | null,
+  timezone: string,
+): string | null {
+  if (!schedulingState?.startsAt) return null;
+  return formatSlotLabel(schedulingState.startsAt, timezone);
+}
+
+function buildQualificationClosedReply(
+  contactName?: string | null,
+  visitLabel?: string | null,
+): string {
+  const who = firstName(contactName);
+  const greeting = who ? `${who}, ` : "";
+  const visit = visitLabel ? ` Te espero na visita (${visitLabel}).` : "";
+  return `Combinado, ${greeting}conversamos com calma na visita sobre o que precisar.${visit} Qualquer dúvida até lá, é só me chamar.`;
+}
+
+function buildQualificationDismissReply(
+  contactName?: string | null,
+  visitLabel?: string | null,
+): string {
+  const who = firstName(contactName);
+  const greeting = who ? `${who}, ` : "";
+  const visit = visitLabel
+    ? ` Sua visita continua confirmada (${visitLabel}).`
+    : "";
+  return `Por nada, ${greeting}!${visit} Até lá — qualquer coisa, é só me chamar.`;
 }
 
 async function offerSlotsDeterministic(
@@ -359,9 +391,16 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         config.features.scheduling &&
         schedulingState?.status === "awaiting_qualification_choice"
       ) {
+        const visitLabel = visitLabelFromState(
+          schedulingState,
+          config.brand.timezone,
+        );
+        const choice = resolveQualificationChoice(body.message);
+        const retries = schedulingState.qualificationRetries ?? 0;
         let replyText: string;
-        if (prefersQualificationAtMeeting(body.message)) {
-          replyText = buildQualificationClosedReply(contactName);
+
+        if (choice === "at_meeting" || choice === "before") {
+          replyText = buildQualificationClosedReply(contactName, visitLabel);
           await mergeConversationMetadata(app.db, phone, {
             scheduling: {
               ...schedulingState,
@@ -369,8 +408,17 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
               updatedAt: new Date().toISOString(),
             },
           });
-        } else if (prefersQualificationBeforeMeeting(body.message)) {
-          replyText = buildQualificationClosedReply(contactName);
+        } else if (choice === "dismiss") {
+          replyText = buildQualificationDismissReply(contactName, visitLabel);
+          await mergeConversationMetadata(app.db, phone, {
+            scheduling: {
+              ...schedulingState,
+              status: "qualification_closed",
+              updatedAt: new Date().toISOString(),
+            },
+          });
+        } else if (retries >= 1) {
+          replyText = buildQualificationDismissReply(contactName, visitLabel);
           await mergeConversationMetadata(app.db, phone, {
             scheduling: {
               ...schedulingState,
@@ -380,7 +428,14 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
           });
         } else {
           replyText =
-            "Para eu seguir: prefere conversar sobre financiamento e perfil na visita, ou quer adiantar algo rápido por aqui antes do encontro?";
+            "Sem problema! Na visita conversamos com calma. Se preferir adiantar algo por aqui antes, é só dizer — ou responda “na visita”.";
+          await mergeConversationMetadata(app.db, phone, {
+            scheduling: {
+              ...schedulingState,
+              qualificationRetries: retries + 1,
+              updatedAt: new Date().toISOString(),
+            },
+          });
         }
         await appendHistory(
           app.redis,
@@ -466,6 +521,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
                 startsAt: booking.appointment.startsAt,
                 propertyCode:
                   extracted.propertyCode ?? schedulingState?.propertyCode,
+                qualificationRetries: 0,
                 updatedAt: new Date().toISOString(),
               },
             });

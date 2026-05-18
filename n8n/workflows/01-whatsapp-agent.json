@@ -251,7 +251,7 @@
           "conditions": [
             {
               "id": "cond-appointment",
-              "leftValue": "={{ Boolean($json.appointmentBooked?.id) && Boolean($env.APPOINTMENT_NOTIFY_PHONE) }}",
+              "leftValue": "={{ Boolean($json.appointmentBooked?.id) }}",
               "rightValue": "",
               "operator": {
                 "type": "boolean",

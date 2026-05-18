@@ -112,6 +112,8 @@ Variáveis no n8n:
 
 Se `PUBLIC_AGENT_API_URL` não existir, o workflow usa `AGENT_API_URL` no texto do link.
 
+**Não recebeu o alerta?** Confira no EasyPanel (serviço n8n): `APPOINTMENT_NOTIFY_PHONE` preenchido (só dígitos, com DDI) e `N8N_BLOCK_ENV_ACCESS_IN_NODE=false`. Reimporte o workflow `01-whatsapp-agent.json` após atualizar o repositório.
+
 ## Segurança contra alucinação
 
 A LLM não decide disponibilidade. A API injeta um bloco `[AGENDA DO SISTEMA]` e também intercepta o fluxo de agendamento:
