@@ -290,7 +290,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ number: $env.APPOINTMENT_NOTIFY_PHONE, text: `Nova visita agendada pela SofIA\\n\\nCliente: ${$json.appointmentBooked.customerName || 'não informado'}\\nTelefone: ${$json.appointmentBooked.phone}\\nHorário: ${$json.appointmentBooked.label}\\nLocal: ${$json.appointmentBooked.location}${$json.appointmentBooked.propertyCode ? `\\nImóvel: ${$json.appointmentBooked.propertyCode}` : ''}\\n\\nICS: ${($env.PUBLIC_AGENT_API_URL || $env.AGENT_API_URL)}/v1/scheduling/appointments/${$json.appointmentBooked.id}/ics` }) }}",
+        "jsonBody": "={{ JSON.stringify({ number: $env.APPOINTMENT_NOTIFY_PHONE, text: $json.appointmentNotifyText || 'Nova visita agendada (atualize a API e o workflow 01).' }) }}",
         "options": {}
       },
       "id": "a1000001-0001-4001-8001-000000000010",

@@ -17,6 +17,8 @@ export type SchedulingSettings = {
   minNoticeMinutes: number;
   horizonDays: number;
   location: string;
+  address: string | null;
+  mapsUrl: string | null;
   active: boolean;
 };
 
@@ -190,10 +192,13 @@ export async function getSchedulingSettings(
     min_notice_minutes: number;
     horizon_days: number;
     location: string;
+    address: string | null;
+    maps_url: string | null;
     active: boolean;
   }>(
     `SELECT timezone, weekdays, work_start, work_end, slot_minutes,
-            duration_minutes, min_notice_minutes, horizon_days, location, active
+            duration_minutes, min_notice_minutes, horizon_days, location,
+            address, maps_url, active
      FROM app.appointment_settings WHERE id = 1`,
   );
 
@@ -208,6 +213,8 @@ export async function getSchedulingSettings(
     minNoticeMinutes: row?.min_notice_minutes ?? 120,
     horizonDays: row?.horizon_days ?? 7,
     location: row?.location ?? "Sede da imobiliária",
+    address: row?.address ?? null,
+    mapsUrl: row?.maps_url ?? null,
     active: row?.active ?? true,
   };
 }

@@ -38,8 +38,13 @@ export const chatResponseSchema = z.object({
       location: z.string(),
       customerName: z.string().nullable().optional(),
       propertyCode: z.string().nullable().optional(),
+      presentedPropertyCodes: z.array(z.string()).optional(),
+      mapsUrl: z.string().nullable().optional(),
+      icsUrl: z.string().nullable().optional(),
     })
     .optional(),
+  /** Texto pronto para WhatsApp do corretor (n8n só repassa). */
+  appointmentNotifyText: z.string().optional(),
   /** Presente quando reason = llm_fallback (debug no n8n) */
   llmError: z.string().optional(),
 });

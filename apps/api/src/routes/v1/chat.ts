@@ -53,11 +53,21 @@ import {
   resolveQualificationChoice,
 } from "../../lib/scheduling-intent.js";
 import {
+  buildAppointmentIcsUrl,
+  resolveOfficeLocation,
+} from "../../lib/appointment-office.js";
+import {
+  buildAppointmentNotifyText,
+  buildBookedClientReply,
+} from "../../lib/appointment-notify.js";
+import { extractPropertyCodesFromHistory } from "../../lib/property-codes-from-history.js";
+import {
   bookAppointment,
   buildSlotOfferReply,
   findRequestedSlot,
   formatSlotLabel,
   formatSlotsForPrompt,
+  getSchedulingSettings,
   listAvailableSlots,
 } from "../../services/scheduling-service.js";
 
@@ -106,17 +116,6 @@ function shouldDeferFinancialQualification(
     schedulingState.status === "booked" ||
     schedulingState.status === "awaiting_qualification_choice"
   );
-}
-
-function buildBookedReply(
-  brandName: string,
-  label: string,
-  location: string,
-  contactName?: string | null,
-): string {
-  const who = firstName(contactName);
-  const greeting = who ? `${who}, ` : "";
-  return `Perfeito, ${greeting}sua visita está confirmada na ${brandName} para ${label}.\n\nLocal: ${location}.\n\nSe quiser, posso anotar aqui algumas informações rápidas para agilizar o atendimento antes da visita — ou prefere conversar sobre tudo pessoalmente no dia? O que fica melhor para você?`;
 }
 
 function visitLabelFromState(
@@ -210,9 +209,12 @@ function appointmentPayload(params: {
   startsAt: string;
   endsAt: string;
   timezone: string;
-  location: string;
+  officeDisplay: string;
   customerName?: string | null;
   propertyCode?: string | null;
+  presentedPropertyCodes: string[];
+  mapsUrl: string | null;
+  icsUrl: string | null;
 }) {
   return {
     id: params.id,
@@ -220,9 +222,12 @@ function appointmentPayload(params: {
     startsAt: params.startsAt,
     endsAt: params.endsAt,
     label: formatSlotLabel(params.startsAt, params.timezone),
-    location: params.location,
+    location: params.officeDisplay,
     customerName: params.customerName ?? null,
     propertyCode: params.propertyCode ?? null,
+    presentedPropertyCodes: params.presentedPropertyCodes,
+    mapsUrl: params.mapsUrl,
+    icsUrl: params.icsUrl,
   };
 }
 
@@ -526,22 +531,51 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
               },
             });
 
+            const schedulingSettings = await getSchedulingSettings(app.db);
+            const office = resolveOfficeLocation(schedulingSettings);
+            const historyForCodes = await loadHistory(
+              app.redis,
+              phone,
+              config.llm.maxHistoryTurns,
+            );
+            const presentedPropertyCodes =
+              extractPropertyCodesFromHistory(historyForCodes);
+            const icsUrl = buildAppointmentIcsUrl(booking.appointment.id);
+
             const booked = appointmentPayload({
               id: booking.appointment.id,
               phone,
               startsAt: booking.appointment.startsAt,
               endsAt: booking.appointment.endsAt,
               timezone: booking.appointment.timezone,
-              location: booking.appointment.location,
+              officeDisplay: office.display,
               customerName: contactName,
               propertyCode: bookedPropertyCode,
+              presentedPropertyCodes,
+              mapsUrl: office.mapsUrl,
+              icsUrl,
             });
-            const replyText = buildBookedReply(
-              config.brand.brandName,
-              booked.label,
-              booked.location,
-              contactName,
-            );
+
+            const who = firstName(contactName);
+            const greeting = who ? `${who}, ` : "";
+            const replyText = buildBookedClientReply({
+              brandName: config.brand.brandName,
+              greeting,
+              label: booked.label,
+              office,
+              propertyCode: bookedPropertyCode,
+              presentedPropertyCodes,
+            });
+
+            const appointmentNotifyText = buildAppointmentNotifyText({
+              customerName: contactName,
+              phone,
+              label: booked.label,
+              office,
+              propertyCode: bookedPropertyCode,
+              presentedPropertyCodes,
+              icsUrl,
+            });
 
             await appendHistory(
               app.redis,
@@ -568,6 +602,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
               conversationMode: "bot",
               reason: "appointment_booked",
               appointmentBooked: booked,
+              appointmentNotifyText,
             } satisfies ChatResponse);
           }
 
