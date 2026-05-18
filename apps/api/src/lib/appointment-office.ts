@@ -4,7 +4,7 @@ export type OfficeLocation = {
   title: string;
   address: string | null;
   mapsUrl: string | null;
-  /** Texto para WhatsApp (título + endereço). */
+  /** Endereço ou título (sem repetir "Sede da imobiliária" + endereço). */
   display: string;
 };
 
@@ -23,9 +23,19 @@ export function resolveOfficeLocation(
       ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
       : null);
 
-  const display = address ? `${title}\n${address}` : title;
+  const display = address ?? title;
 
   return { title, address, mapsUrl, display };
+}
+
+export function isValidHttpUrl(value: string | null | undefined): boolean {
+  if (!value?.trim()) return false;
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 export function buildPublicApiBaseUrl(): string | null {

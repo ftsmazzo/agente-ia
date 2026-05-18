@@ -563,8 +563,6 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
               greeting,
               label: booked.label,
               office,
-              propertyCode: bookedPropertyCode,
-              presentedPropertyCodes,
             });
 
             const appointmentNotifyText = buildAppointmentNotifyText({

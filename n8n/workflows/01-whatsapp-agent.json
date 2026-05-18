@@ -290,7 +290,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ number: $env.APPOINTMENT_NOTIFY_PHONE, text: $json.appointmentNotifyText || 'Nova visita agendada (atualize a API e o workflow 01).' }) }}",
+        "jsonBody": "={{ JSON.stringify({ number: $env.APPOINTMENT_NOTIFY_PHONE, text: $('Chamar API Agente').item.json.appointmentNotifyText || 'Nova visita agendada. Reimporte o workflow 01 e confira PUBLIC_AGENT_API_URL na API.' }) }}",
         "options": {}
       },
       "id": "a1000001-0001-4001-8001-000000000010",

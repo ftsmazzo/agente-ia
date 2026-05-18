@@ -1,5 +1,12 @@
 import type { OfficeLocation } from "./appointment-office.js";
+import { isValidHttpUrl } from "./appointment-office.js";
 import { formatPropertyInterestLine } from "./property-codes-from-history.js";
+
+/** Maps em linha separada — WhatsApp exibe o link com preview sem poluir o endereço. */
+export function formatMapsLines(mapsUrl: string | null | undefined): string[] {
+  if (!isValidHttpUrl(mapsUrl)) return [];
+  return ["", "Ver rota no Google Maps:", mapsUrl!.trim()];
+}
 
 export function buildAppointmentNotifyText(params: {
   customerName: string | null;
@@ -25,37 +32,27 @@ export function buildAppointmentNotifyText(params: {
   );
   if (propertyLine) lines.push(propertyLine);
 
-  if (params.icsUrl) {
-    lines.push("", `Adicionar à agenda: ${params.icsUrl}`);
+  if (isValidHttpUrl(params.icsUrl)) {
+    lines.push("", "Arquivo para agenda (.ics):", params.icsUrl!.trim());
   }
 
   return lines.join("\n");
 }
 
+/** Confirmação ao cliente — sem código AP (só na notificação ao corretor). */
 export function buildBookedClientReply(params: {
   brandName: string;
   greeting: string;
   label: string;
   office: OfficeLocation;
-  propertyCode?: string | null;
-  presentedPropertyCodes?: string[];
 }): string {
   const who = params.greeting;
   const lines = [
     `Perfeito, ${who}sua visita está confirmada na ${params.brandName} para ${params.label}.`,
     "",
     `Local: ${params.office.display}`,
+    ...formatMapsLines(params.office.mapsUrl),
   ];
-
-  if (params.office.mapsUrl) {
-    lines.push(`Como chegar: ${params.office.mapsUrl}`);
-  }
-
-  const propertyLine = formatPropertyInterestLine(
-    params.propertyCode,
-    params.presentedPropertyCodes ?? [],
-  );
-  if (propertyLine) lines.push("", propertyLine);
 
   lines.push(
     "",
