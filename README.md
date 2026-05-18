@@ -81,10 +81,13 @@ Guia passo a passo: [docs/easypanel-deploy.md](./docs/easypanel-deploy.md)
 | 2 — Workflow n8n mínimo (Evolution → API) | ✅ |
 | 2b — Motor LLM (OpenAI + histórico Redis) | ✅ |
 | 2c — RAG imóveis + fichas AP#### | ✅ |
-| 3a — Debounce WhatsApp | ✅ (`/v1/debounce/wait-and-merge`) |
-| 3b — Áudio (transcrição + TTS) | 🔜 |
-| 4 — Chatwoot handoff | 🔜 |
+| 3a — Debounce WhatsApp | ✅ |
+| 3b — Handoff humano + qualificação CRM | ✅ |
+| 3c — Áudio (transcrição + TTS) | 🔜 |
+| 4 — Chatwoot sync (webhook → modo human) | 🔜 |
 | 5 — Admin UI (opcional) | 🔜 |
+
+Handoff: [docs/handoff-chatwoot.md](./docs/handoff-chatwoot.md)
 
 Checklist produção: [docs/operations-production.md](./docs/operations-production.md)
 

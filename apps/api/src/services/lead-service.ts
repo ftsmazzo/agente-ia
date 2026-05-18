@@ -1,5 +1,9 @@
 import type pg from "pg";
 import type { ExtractedMessage } from "../lib/extract-message.js";
+import {
+  mergeQualificationSnapshots,
+  type QualificationSnapshot,
+} from "../lib/qualification-extract.js";
 
 export async function upsertLeadFromMessage(
   pool: pg.Pool,
@@ -54,4 +58,52 @@ export async function getContactDisplayName(
     [phone],
   );
   return rows[0]?.display_name ?? null;
+}
+
+/** Grava qualificação em metadata (determinístico — não usa saída do LLM). */
+export async function mergeLeadQualification(
+  pool: pg.Pool,
+  phone: string,
+  propertyCode: string | null,
+  incoming: Partial<QualificationSnapshot>,
+): Promise<boolean> {
+  await pool.query(
+    `INSERT INTO app.contacts (phone, updated_at)
+     VALUES ($1, NOW())
+     ON CONFLICT (phone) DO UPDATE SET updated_at = NOW()`,
+    [phone],
+  );
+
+  const code = propertyCode ?? null;
+  const { rows } = await pool.query<{
+    id: number;
+    metadata: { qualification?: QualificationSnapshot };
+  }>(
+    `SELECT id, metadata FROM app.lead_actions
+     WHERE phone = $1 AND COALESCE(property_code, '') = COALESCE($2::text, '')
+     ORDER BY updated_at DESC LIMIT 1`,
+    [phone, code],
+  );
+
+  const existing = rows[0]?.metadata?.qualification;
+  const merged = mergeQualificationSnapshots(existing, incoming);
+
+  if (rows[0]) {
+    await pool.query(
+      `UPDATE app.lead_actions
+       SET metadata = metadata || jsonb_build_object('qualification', $2::jsonb),
+           status = CASE WHEN status = 'new' THEN 'qualification' ELSE status END,
+           updated_at = NOW()
+       WHERE id = $1`,
+      [rows[0].id, JSON.stringify(merged)],
+    );
+    return true;
+  }
+
+  await pool.query(
+    `INSERT INTO app.lead_actions (phone, property_code, status, metadata, updated_at)
+     VALUES ($1, $2, 'qualification', jsonb_build_object('qualification', $3::jsonb), NOW())`,
+    [phone, code, JSON.stringify(merged)],
+  );
+  return true;
 }

@@ -17,11 +17,20 @@ import {
   recordMessageEvent,
 } from "../../services/message-events.js";
 import {
+  buildHandoffReply,
+  buildReturnToBotReply,
+  wantsHumanHandoff,
+  wantsReturnToBot,
+} from "../../lib/handoff-intent.js";
+import { extractQualificationFromMessage } from "../../lib/qualification-extract.js";
+import {
   getConversationMode,
+  setConversationMode,
   touchConversation,
 } from "../../services/conversation-state.js";
 import {
   getContactDisplayName,
+  mergeLeadQualification,
   upsertLeadFromMessage,
 } from "../../services/lead-service.js";
 import {
@@ -107,6 +116,59 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         } satisfies ChatResponse);
       }
 
+      const contactNameEarly =
+        (await getContactDisplayName(app.db, phone)) ??
+        resolveDisplayName(body.metadata, body.message);
+
+      if (config.features.humanHandoff && wantsReturnToBot(body.message)) {
+        await setConversationMode(app.db, phone, "bot", {
+          reason: "client_return_to_bot",
+        });
+        const replyText = buildReturnToBotReply(
+          config.brand.assistantName,
+          contactNameEarly,
+        );
+        await recordMessageEvent(app.db, {
+          externalId: `${body.messageId}:out`,
+          phone,
+          direction: "outbound",
+          status: "queued",
+          workflowStep: "chat",
+          metadata: { reason: "return_to_bot" },
+        });
+        return reply.send({
+          shouldReply: true,
+          replyText,
+          conversationMode: "bot",
+          reason: "return_to_bot",
+        } satisfies ChatResponse);
+      }
+
+      if (config.features.humanHandoff && wantsHumanHandoff(body.message)) {
+        await setConversationMode(app.db, phone, "human", {
+          reason: "client_requested_human",
+        });
+        const replyText = buildHandoffReply(
+          config.brand.brandName,
+          config.brand.assistantName,
+          contactNameEarly,
+        );
+        await recordMessageEvent(app.db, {
+          externalId: `${body.messageId}:out`,
+          phone,
+          direction: "outbound",
+          status: "queued",
+          workflowStep: "chat",
+          metadata: { reason: "handoff_requested" },
+        });
+        return reply.send({
+          shouldReply: true,
+          replyText,
+          conversationMode: "human",
+          reason: "handoff_requested",
+        } satisfies ChatResponse);
+      }
+
       const extracted = extractFromMessage(body.message);
       const intent = classifyMessageIntent(body.message, extracted);
       const displayName = resolveDisplayName(body.metadata, body.message);
@@ -118,8 +180,19 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         displayName,
       );
 
-      const contactName =
-        (await getContactDisplayName(app.db, phone)) ?? displayName;
+      const contactName = contactNameEarly ?? displayName;
+
+      const qualificationPatch = extractQualificationFromMessage(body.message);
+      if (qualificationPatch) {
+        await mergeLeadQualification(
+          app.db,
+          phone,
+          extracted.propertyCode,
+          qualificationPatch,
+        ).catch((err) => {
+          request.log.warn({ err, phone }, "qualification merge failed");
+        });
+      }
 
       let replyText: string;
       let reason: string;

@@ -29,8 +29,28 @@ Gravado quando a mensagem indica interesse ou traz código `AP1234`:
 
 Cada mensagem recebida e cada resposta planejada — para suporte e debug.
 
+## `lead_actions.metadata.qualification`
+
+Quando o cliente menciona na mensagem (extração determinística):
+
+| Campo | Exemplo |
+|-------|---------|
+| `budget_max_brl` | 300000 |
+| `payment` | `financing`, `cash`, `fgts` |
+| `buying_with` | `alone`, `couple`, `family` |
+| `timeline_hint` | "em 30 dias" |
+| `visit_requested` | true |
+| `income_hint` | trecho da mensagem |
+
+## `app.conversation_state`
+
+| Modo | Comportamento |
+|------|----------------|
+| `bot` | SofIA responde |
+| `human` | Bot silencia; corretor no Chatwoot |
+| `paused` | Igual human (pausa temporária) |
+
 ## O que **não** grava ainda
 
-- Endereço, e-mail, CPF
-- Dados completos do imóvel (catálogo / RAG — Fase 2)
-- Nome extraído por IA da conversa inteira (Fase 2)
+- Endereço, e-mail, CPF completos (só bairro na conversa)
+- Nome extraído por IA da conversa inteira

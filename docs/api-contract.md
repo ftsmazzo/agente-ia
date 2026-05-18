@@ -26,6 +26,23 @@ Sem autenticação. Para load balancer e EasyPanel healthcheck.
 }
 ```
 
+## `GET /v1/conversation?phone=5511999999999`
+
+Consulta modo (`bot` | `human` | `paused`).
+
+## `POST /v1/conversation/mode`
+
+Altera modo (n8n, Chatwoot, painel interno).
+
+```json
+{
+  "phone": "5511999999999",
+  "mode": "human",
+  "assigneeRef": "optional-chatwoot-id",
+  "reason": "chatwoot_assign"
+}
+```
+
 ## `GET /v1/config/brand`
 
 Retorna identidade pública (sem secrets).
