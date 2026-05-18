@@ -29,4 +29,16 @@ Como confrontar
 3. Para cada linha do EasyPanel: existe no arquivo certo? Se não, apague ou mova.
 4. Para cada linha obrigatória do arquivo: está preenchida no EasyPanel?
 
+ZERAR DADOS (teste)
+-------------------
+Reset completo no restart da API:
+  RESET_DEV_DATA_ON_START=true
+  Se NODE_ENV=production: ALLOW_DEV_DATA_RESET=true
+  Reinicie o container. Depois volte RESET=false.
+
+Reset só do seu WhatsApp (sem apagar tudo):
+  POST /v1/conversation/reset
+  Header: X-API-Key: <API_INTERNAL_KEY>
+  Body: {"phone":"5516999999999"}
+
 Documentação extra: docs/variaveis-por-servico.md

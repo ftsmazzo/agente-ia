@@ -21,9 +21,15 @@ const allowInProd = process.env.ALLOW_DEV_DATA_RESET === "true";
 
 if (nodeEnv === "production" && !allowInProd) {
   console.error(
-    "[reset-dev] bloqueado em NODE_ENV=production. Defina ALLOW_DEV_DATA_RESET=true se for ambiente de testes.",
+    "[reset-dev] IGNORADO: NODE_ENV=production sem ALLOW_DEV_DATA_RESET=true.",
   );
-  process.exit(1);
+  console.error(
+    "[reset-dev] Para zerar dados em produção de teste, adicione ALLOW_DEV_DATA_RESET=true e reinicie o container.",
+  );
+  console.error(
+    "[reset-dev] Ou use POST /v1/conversation/reset para um telefone (ver docs).",
+  );
+  process.exit(0);
 }
 
 if (!databaseUrl) {
@@ -42,6 +48,7 @@ try {
   await client.connect();
   await client.query(`
     TRUNCATE TABLE
+      app.appointments,
       app.failed_messages,
       app.lead_actions,
       app.message_events,
@@ -50,7 +57,9 @@ try {
       app.prompt_versions
     RESTART IDENTITY CASCADE
   `);
-  console.log("[reset-dev] PostgreSQL: tabelas app.* truncadas (schema_migrations mantido)");
+  console.log(
+    "[reset-dev] PostgreSQL: appointments, conversas, leads e eventos apagados (appointment_settings e schema_migrations mantidos)",
+  );
 } finally {
   await client.end().catch(() => undefined);
 }

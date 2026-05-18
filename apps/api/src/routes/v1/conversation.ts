@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { resetConversationForPhone } from "../../services/conversation-reset.js";
 import {
   getConversationState,
   setConversationMode,
@@ -68,6 +69,38 @@ export async function conversationRoutes(app: FastifyInstance): Promise<void> {
       phone,
       mode,
       assigneeRef: assigneeRef ?? null,
+    });
+  });
+
+  app.post("/v1/conversation/reset", async (request, reply) => {
+    const parsed = z
+      .object({
+        phone: z.string().min(8).max(32),
+        cancelAppointments: z.boolean().optional(),
+      })
+      .safeParse(request.body);
+
+    if (!parsed.success) {
+      return reply.status(400).send({
+        error: "validation_error",
+        details: parsed.error.flatten(),
+      });
+    }
+
+    const phone = parsed.data.phone.replace(/\D/g, "");
+    const result = await resetConversationForPhone(
+      app.db,
+      app.redis,
+      phone,
+      { cancelAppointments: parsed.data.cancelAppointments },
+    );
+
+    request.log.info({ phone, ...result }, "conversation reset");
+
+    return reply.send({
+      ok: true,
+      phone,
+      ...result,
     });
   });
 }
