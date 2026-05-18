@@ -27,7 +27,11 @@ Frases como *"quero falar com um corretor"*:
 
 `GET /v1/conversation?phone=5516999999999` — consulta modo atual.
 
-## Integração Chatwoot (próximo passo operacional)
+## Conectar Evolution ↔ Chatwoot (teste)
+
+Guia passo a passo: **[chatwoot-evolution-setup.md](./chatwoot-evolution-setup.md)**
+
+## Integração Chatwoot (automação — próximo passo)
 
 1. Evolution bridge → Chatwoot (inbox WhatsApp).
 2. Quando corretor **atribuir** conversa no Chatwoot, n8n ou webhook chama:
