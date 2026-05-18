@@ -96,9 +96,9 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ messageId: $('Normalizar').item.json.messageId, phone: $('Normalizar').item.json.phone, message: $('Normalizar').item.json.message, instance: $('Normalizar').item.json.instance, messageType: $('Normalizar').item.json.messageType, debounceMs: Number($env.DEBOUNCE_MS) || 3000, metadata: { pushName: $('Normalizar').item.json.pushName || undefined, displayName: $('Normalizar').item.json.pushName || undefined } }) }}",
+        "jsonBody": "={{ JSON.stringify({ messageId: $('Normalizar').item.json.messageId, phone: $('Normalizar').item.json.phone, message: $('Normalizar').item.json.message, instance: $('Normalizar').item.json.instance, messageType: $('Normalizar').item.json.messageType, debounceMs: Number($env.DEBOUNCE_MS) || 5000, metadata: { pushName: $('Normalizar').item.json.pushName || undefined, displayName: $('Normalizar').item.json.pushName || undefined } }) }}",
         "options": {
-          "timeout": 20000
+          "timeout": 30000
         }
       },
       "id": "a1000001-0001-4001-8001-000000000007",

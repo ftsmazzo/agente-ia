@@ -11,7 +11,8 @@ Use após validar SofIA + RAG em ambiente de testes.
 | `NODE_ENV` | `production` |
 | `OPENAI_API_KEY`, `RAG_API_KEY` | Só em **Environment**, nunca Build Args |
 | `API_INTERNAL_KEY` | String longa aleatória; igual no n8n (`AGENT_API_KEY`) |
-| `DEBOUNCE_MS` | `3000`–`5000` (janela entre mensagens seguidas) |
+| `DEBOUNCE_MS` | `5000` (silêncio após última msg; suba para 6000–7000 se ainda vier dupla resposta) |
+| `DEBOUNCE_MAX_WAIT_MS` | `20000` |
 | `RAG_TIMEOUT_MS` | `45000` |
 
 ## 2. n8n

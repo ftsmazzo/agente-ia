@@ -12,11 +12,14 @@ Evolution → n8n → POST /v1/debounce/wait-and-merge (aguarda ~3s no Redis)
 
 A lógica usa o **mesmo Redis** da API (`REDIS_URL`).
 
+**Modo silêncio:** a resposta só sai após `DEBOUNCE_MS` **sem nenhuma mensagem nova** do mesmo número (quem demora para digitar a última linha não recebe duas respostas).
+
 ## Variáveis
 
 | Variável | Padrão | Descrição |
 |----------|--------|-----------|
-| `DEBOUNCE_MS` | `3000` | Janela em ms após a última mensagem do burst |
+| `DEBOUNCE_MS` | `5000` | Ms de silêncio após a última mensagem antes de chamar o LLM |
+| `DEBOUNCE_MAX_WAIT_MS` | `20000` | Teto de espera (evita n8n pendurado) |
 
 No n8n, use o mesmo `DEBOUNCE_MS` no body (opcional; a API usa o env se omitir).
 

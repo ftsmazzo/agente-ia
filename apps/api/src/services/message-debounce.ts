@@ -13,7 +13,7 @@ export type DebounceWaitResult =
     }
   | {
       process: false;
-      reason: "superseded";
+      reason: "superseded" | "timeout";
       waitedMs: number;
     };
 
@@ -23,6 +23,10 @@ function bufKey(phone: string): string {
 
 function genKey(phone: string): string {
   return `debounce:gen:${phone}`;
+}
+
+function lastAtKey(phone: string): string {
+  return `debounce:lastAt:${phone}`;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -64,35 +68,71 @@ function mergeChatPayloads(items: DebounceEnqueuePayload[]): DebounceEnqueuePayl
 }
 
 /**
- * Enfileira mensagem, aguarda janela de debounce e só retorna merged se esta
- * execução for a última do burst (evita N respostas para N mensagens seguidas).
+ * Debounce por silêncio: só processa após `debounceMs` sem novas mensagens
+ * do mesmo telefone (quem digita devagar não gera duas respostas).
  */
 export async function waitDebounceAndMerge(params: {
   redis: Redis;
   phone: string;
   payload: DebounceEnqueuePayload;
   debounceMs: number;
+  maxWaitMs?: number;
 }): Promise<DebounceWaitResult> {
   const { redis, phone, payload } = params;
   const debounceMs = Math.min(Math.max(params.debounceMs, 500), 15_000);
+  const maxWaitMs = Math.min(
+    Math.max(
+      params.maxWaitMs ?? Number(process.env.DEBOUNCE_MAX_WAIT_MS ?? 20_000),
+      debounceMs + 2_000,
+    ),
+    30_000,
+  );
+  const pollMs = 400;
   const started = Date.now();
+  const now = started;
 
   const myGen = await redis.incr(genKey(phone));
   await redis.rpush(bufKey(phone), JSON.stringify(payload));
+  await redis.set(lastAtKey(phone), String(now), "EX", 120);
   await redis.expire(bufKey(phone), 120);
   await redis.expire(genKey(phone), 120);
 
-  await sleep(debounceMs);
+  let ready = false;
+
+  while (Date.now() - started < maxWaitMs) {
+    await sleep(pollMs);
+
+    const currentGen = Number(await redis.get(genKey(phone)));
+    if (currentGen !== myGen) {
+      return {
+        process: false,
+        reason: "superseded",
+        waitedMs: Date.now() - started,
+      };
+    }
+
+    const lastAt = Number(await redis.get(lastAtKey(phone)));
+    const silence = Date.now() - (Number.isFinite(lastAt) ? lastAt : started);
+
+    if (silence >= debounceMs) {
+      ready = true;
+      break;
+    }
+  }
 
   const waitedMs = Date.now() - started;
-  const currentGen = Number(await redis.get(genKey(phone)));
 
+  if (!ready) {
+    return { process: false, reason: "timeout", waitedMs };
+  }
+
+  const currentGen = Number(await redis.get(genKey(phone)));
   if (currentGen !== myGen) {
     return { process: false, reason: "superseded", waitedMs };
   }
 
   const rawItems = await redis.lrange(bufKey(phone), 0, -1);
-  await redis.del(bufKey(phone), genKey(phone));
+  await redis.del(bufKey(phone), genKey(phone), lastAtKey(phone));
 
   if (rawItems.length === 0) {
     return { process: false, reason: "superseded", waitedMs };

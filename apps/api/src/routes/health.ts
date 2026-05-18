@@ -17,9 +17,9 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
       );
     }
 
-    const debounceMs = Number(process.env.DEBOUNCE_MS ?? 3000);
+    const debounceMs = Number(process.env.DEBOUNCE_MS ?? 5000);
     if (!Number.isFinite(debounceMs) || debounceMs < 500) {
-      warnings.push("DEBOUNCE_MS inválido — usando 3000ms no endpoint de debounce");
+      warnings.push("DEBOUNCE_MS inválido — usando 5000ms no endpoint de debounce");
     }
 
     try {
@@ -69,7 +69,9 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
         baseUrl: config.rag.baseUrl,
       },
       debounce: {
-        defaultMs: Number.isFinite(debounceMs) && debounceMs > 0 ? debounceMs : 3000,
+        defaultMs: Number.isFinite(debounceMs) && debounceMs > 0 ? debounceMs : 5000,
+        maxWaitMs: Number(process.env.DEBOUNCE_MAX_WAIT_MS ?? 20_000),
+        mode: "silence",
         endpoint: "/v1/debounce/wait-and-merge",
       },
       ops: {

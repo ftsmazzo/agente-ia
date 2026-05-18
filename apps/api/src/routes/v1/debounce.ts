@@ -5,6 +5,7 @@ import { waitDebounceAndMerge } from "../../services/message-debounce.js";
 
 const debounceBodySchema = chatRequestSchema.extend({
   debounceMs: z.number().int().min(500).max(15_000).optional(),
+  maxWaitMs: z.number().int().min(2_000).max(30_000).optional(),
 });
 
 export async function debounceRoutes(app: FastifyInstance): Promise<void> {
@@ -19,16 +20,22 @@ export async function debounceRoutes(app: FastifyInstance): Promise<void> {
 
     const body = parsed.data;
     const phone = body.phone.replace(/\D/g, "");
-    const defaultMs = Number(process.env.DEBOUNCE_MS ?? 3000);
+    const defaultMs = Number(process.env.DEBOUNCE_MS ?? 5000);
     const debounceMs =
       body.debounceMs ??
-      (Number.isFinite(defaultMs) && defaultMs > 0 ? defaultMs : 3000);
+      (Number.isFinite(defaultMs) && defaultMs > 0 ? defaultMs : 5000);
+
+    const defaultMax = Number(process.env.DEBOUNCE_MAX_WAIT_MS ?? 20_000);
+    const maxWaitMs =
+      body.maxWaitMs ??
+      (Number.isFinite(defaultMax) && defaultMax > 0 ? defaultMax : 20_000);
 
     const result = await waitDebounceAndMerge({
       redis: app.redis,
       phone,
       payload: { ...body, phone },
       debounceMs,
+      maxWaitMs,
     });
 
     request.log.info(
