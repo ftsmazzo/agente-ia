@@ -52,7 +52,9 @@ Secrets (Postgres, LLM, Evolution) ficam só no EasyPanel — não no portal.
 | Serviço **portal** | `PORTAL_API_URL` | URL da API (Environment, runtime) |
 | Serviço **agente-ia** | `PORTAL_CORS_ORIGIN` | URL exata do painel (`https://painel...`) |
 
-Se aparecer **Failed to fetch**: confira `PORTAL_API_URL` no portal e `PORTAL_CORS_ORIGIN` na API (mesmo `https`, sem barra no final).
+Se aparecer **Failed to fetch** ou **Mixed Content**: a API no env deve ser `https://...` (não `http://`). Confira também `PORTAL_CORS_ORIGIN` na API = URL exata do painel.
+
+Erros `runtime.lastError` / `extension port` no console vêm de extensões do Chrome — ignore; não são do portal.
 
 ## Camadas do prompt
 

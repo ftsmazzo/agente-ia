@@ -46,7 +46,7 @@ COPY planilha/Imoveis.xlsx ./planilha/Imoveis.xlsx
 
 ENV APP_ROOT=/app
 ENV RUN_MIGRATIONS_ON_START=true
-ENV APP_VERSION=0.13.1
+ENV APP_VERSION=0.13.2
 ENV PROPERTIES_IMPORT_ON_START=true
 ENV PROPERTIES_XLSX_PATH=/app/planilha/Imoveis.xlsx
 

@@ -4,10 +4,25 @@ declare global {
   }
 }
 
+/** Painel em HTTPS não pode chamar API em HTTP (Mixed Content bloqueado pelo browser). */
+function normalizeApiBase(raw: string): string {
+  let base = raw.trim().replace(/\/$/, "");
+  if (!base) return "";
+
+  if (
+    typeof window !== "undefined" &&
+    window.location.protocol === "https:" &&
+    base.startsWith("http://")
+  ) {
+    base = `https://${base.slice("http://".length)}`;
+  }
+  return base;
+}
+
 function resolveApiBase(): string {
-  const fromRuntime = window.__PORTAL_API_URL__?.trim();
-  const fromBuild = import.meta.env.VITE_API_URL?.trim();
-  return (fromRuntime || fromBuild || "").replace(/\/$/, "");
+  const fromRuntime = window.__PORTAL_API_URL__?.trim() ?? "";
+  const fromBuild = import.meta.env.VITE_API_URL?.trim() ?? "";
+  return normalizeApiBase(fromRuntime || fromBuild);
 }
 
 const API_BASE = resolveApiBase();
