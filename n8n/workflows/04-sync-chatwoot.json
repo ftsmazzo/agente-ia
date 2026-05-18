@@ -1,0 +1,146 @@
+{
+  "name": "04 Sync Chatwoot (handoff)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chatwoot-sync",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "a4000004-0001-4001-8001-000000000001",
+      "name": "Webhook Chatwoot",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300],
+      "webhookId": "chatwoot-sync-handoff"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json;\nconst b = raw.body ?? raw;\n\nconst event = String(b.event || '').toLowerCase().trim();\nconst conv = b.conversation || b.message?.conversation || {};\nconst meta = conv.meta || b.meta || {};\nconst contact = meta.sender || b.sender || {};\nconst msg = b.message || (event === 'message_created' ? b : null);\n\nfunction digits(v) {\n  return String(v || '').replace(/\\D/g, '');\n}\n\nlet phone = digits(\n  contact.phone_number || contact.phoneNumber || conv.phone_number,\n);\nif (!phone && contact.identifier) {\n  phone = String(contact.identifier).split('@')[0].replace(/\\D/g, '');\n}\nif (!phone && conv.contact_inbox?.source_id) {\n  const sid = String(conv.contact_inbox.source_id);\n  if (!sid.includes('-')) phone = digits(sid);\n}\n\nconst inboxFilter = String($env.CHATWOOT_INBOX_ID || '').trim();\nconst inboxId = conv.inbox_id ?? conv.inbox?.id ?? b.inbox?.id;\nif (inboxFilter && inboxId != null && String(inboxId) !== inboxFilter) {\n  return [\n    {\n      json: {\n        skip: true,\n        reason: 'inbox_filtered',\n        event,\n        inboxId,\n        phone: phone || null,\n      },\n    },\n  ];\n}\n\nconst assigneeId =\n  conv.assignee_id ?? conv.assignee?.id ?? b.assignee?.id ?? null;\nlet status = String(conv.status || '').toLowerCase();\n\nconst changed = b.changed_attributes || conv.changed_attributes || [];\nlet assigneeChanged = false;\nlet statusChanged = false;\nlet currentAssignee = assigneeId;\n\nfor (const row of Array.isArray(changed) ? changed : []) {\n  if (row.assignee_id) {\n    assigneeChanged = true;\n    currentAssignee = row.assignee_id.current_value ?? currentAssignee;\n  }\n  if (row.status) {\n    statusChanged = true;\n    status = String(row.status.current_value || status).toLowerCase();\n  }\n}\n\nlet mode = null;\nlet reason = null;\n\nif (\n  event === 'assignee_changed' ||\n  (event === 'conversation_updated' && assigneeChanged)\n) {\n  if (currentAssignee) {\n    mode = 'human';\n    reason = 'chatwoot_assign';\n  }\n}\n\nif (\n  event === 'conversation_status_changed' ||\n  (event === 'conversation_updated' && statusChanged)\n) {\n  if (status === 'resolved') {\n    mode = 'bot';\n    reason = 'chatwoot_resolved';\n  } else if ((status === 'open' || status === 'pending') && currentAssignee) {\n    mode = 'human';\n    reason = 'chatwoot_status_' + status;\n  }\n}\n\nif (event === 'message_created' && msg) {\n  const senderType = String(\n    msg.sender_type || msg.sender?.type || '',\n  ).toLowerCase();\n  const messageType = String(msg.message_type ?? '').toLowerCase();\n  const sourceId = String(msg.source_id || '').trim();\n  const externalSourceIds = msg.external_source_ids || {};\n  const hasExternalSource =\n    Boolean(sourceId) ||\n    (typeof externalSourceIds === 'object' &&\n      Object.keys(externalSourceIds).length > 0);\n  const isOutgoing =\n    messageType === 'outgoing' || messageType === '1' || msg.message_type === 1;\n\n  // Mensagens da SofIA espelhadas pela Evolution aparecem como User/outgoing,\n  // mas carregam source_id (ex.: WAID...). Mensagem digitada no painel não carrega.\n  if (senderType === 'user' && isOutgoing && !hasExternalSource) {\n    mode = 'human';\n    reason = 'chatwoot_agent_message';\n    const agentId = msg.sender_id ?? msg.sender?.id;\n    if (agentId) currentAssignee = currentAssignee ?? agentId;\n  }\n}\n\nconst assigneeRef = currentAssignee\n  ? `chatwoot-user-${currentAssignee}`\n  : undefined;\n\nconst skip = !phone || phone.length < 10 || !mode;\n\nreturn [\n  {\n    json: {\n      event,\n      phone,\n      mode,\n      reason,\n      assigneeRef,\n      conversationId: conv.id ?? null,\n      status,\n      assigneeId: currentAssignee,\n      skip,\n      debugSkipReason: skip\n        ? !phone\n          ? 'no_phone'\n          : phone.length < 10\n            ? 'phone_short'\n            : 'no_mode_for_event'\n        : null,\n    },\n  },\n];"
+      },
+      "id": "a4000004-0001-4001-8001-000000000002",
+      "name": "Normalizar evento",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [280, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-skip",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "cond-mode",
+              "leftValue": "={{ $json.mode }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a4000004-0001-4001-8001-000000000003",
+      "name": "Atualizar modo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [560, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.AGENT_API_URL }}/v1/conversation/mode",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.AGENT_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ phone: $json.phone, mode: $json.mode, assigneeRef: $json.assigneeRef, reason: $json.reason }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "a4000004-0001-4001-8001-000000000004",
+      "name": "API conversation/mode",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [840, 220]
+    }
+  ],
+  "connections": {
+    "Webhook Chatwoot": {
+      "main": [
+        [
+          {
+            "node": "Normalizar evento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar evento": {
+      "main": [
+        [
+          {
+            "node": "Atualizar modo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar modo?": {
+      "main": [
+        [
+          {
+            "node": "API conversation/mode",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "active": false
+}

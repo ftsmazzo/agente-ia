@@ -30,6 +30,13 @@ Referência para `.env` local e EasyPanel. Copie de `.env.example`.
 | `FEATURE_PROPERTY_RAG` | true |
 | `FEATURE_HUMAN_HANDOFF` | true |
 
+## Agenda / n8n
+
+| Variável | Padrão | Descrição |
+|----------|--------|-----------|
+| `APPOINTMENT_NOTIFY_PHONE` | — | No n8n: WhatsApp do corretor para alerta de visita agendada |
+| `PUBLIC_AGENT_API_URL` | — | URL pública da API para link `.ics` em notificações |
+
 ## Runtime
 
 | Variável | Padrão | Descrição |

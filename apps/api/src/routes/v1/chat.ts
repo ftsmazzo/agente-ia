@@ -24,11 +24,13 @@ import {
 } from "../../lib/handoff-intent.js";
 import { extractQualificationFromMessage } from "../../lib/qualification-extract.js";
 import {
-  getConversationMode,
+  getConversationState,
+  mergeConversationMetadata,
   setConversationMode,
   touchConversation,
 } from "../../services/conversation-state.js";
 import {
+  attachAppointmentToLead,
   getContactDisplayName,
   mergeLeadQualification,
   upsertLeadFromMessage,
@@ -45,6 +47,152 @@ import {
   fetchPropertyKnowledgeFromRag,
   shouldQueryPropertyRag,
 } from "../../services/property-rag-service.js";
+import {
+  acceptsVisitAffirmative,
+  botMessageInvitesVisit,
+  prefersQualificationAtMeeting,
+  prefersQualificationBeforeMeeting,
+} from "../../lib/scheduling-intent.js";
+import {
+  bookAppointment,
+  buildSlotOfferReply,
+  findRequestedSlot,
+  formatSlotLabel,
+  formatSlotsForPrompt,
+  listAvailableSlots,
+} from "../../services/scheduling-service.js";
+
+type SchedulingConversationState = {
+  status?:
+    | "awaiting_accept"
+    | "awaiting_slot"
+    | "booked"
+    | "awaiting_qualification_choice"
+    | "qualification_closed";
+  visitPrompted?: boolean;
+  offeredSlots?: string[];
+  appointmentId?: number;
+  propertyCode?: string | null;
+  updatedAt?: string;
+};
+
+function getSchedulingState(
+  metadata: Record<string, unknown> | undefined,
+): SchedulingConversationState | null {
+  const raw = metadata?.scheduling;
+  if (!raw || typeof raw !== "object") return null;
+  return raw as SchedulingConversationState;
+}
+
+function wantsScheduling(message: string): boolean {
+  return /\b(agenda|agendar|marcar|visita|visitar|hor[aá]rio|horarios|horários)\b/i.test(
+    message,
+  );
+}
+
+function shouldDeferFinancialQualification(
+  schedulingState: SchedulingConversationState | null,
+): boolean {
+  if (!schedulingState?.status) return false;
+  return (
+    schedulingState.status === "awaiting_accept" ||
+    schedulingState.status === "awaiting_slot" ||
+    schedulingState.status === "booked" ||
+    schedulingState.status === "awaiting_qualification_choice"
+  );
+}
+
+function buildBookedReply(
+  brandName: string,
+  label: string,
+  location: string,
+  contactName?: string | null,
+): string {
+  const who = contactName ? `${contactName}, ` : "";
+  return `Perfeito, ${who}sua visita está confirmada na ${brandName} para ${label}.\n\nLocal: ${location}.\n\nSe quiser, posso anotar aqui algumas informações rápidas para agilizar o atendimento antes da visita — ou prefere conversar sobre tudo pessoalmente no dia? O que fica melhor para você?`;
+}
+
+function buildQualificationClosedReply(contactName?: string | null): string {
+  const who = contactName ? `${contactName}, ` : "";
+  return `Combinado, ${who}conversamos com calma na visita sobre financiamento, simulações e o que mais precisar. Qualquer dúvida até lá, é só me chamar.`;
+}
+
+async function offerSlotsDeterministic(
+  app: FastifyInstance,
+  params: {
+    phone: string;
+    messageId: string;
+    message: string;
+    propertyCode?: string | null;
+    reason: string;
+    slotMismatch?: boolean;
+  },
+): Promise<ChatResponse & { shouldReply: true; replyText: string }> {
+  const slots = await listAvailableSlots(app.db, { limit: 5 });
+  let replyText = buildSlotOfferReply(slots);
+  if (params.slotMismatch) {
+    replyText += `\n\nNão encontrei esse horário na agenda. Pode escolher uma das opções acima?`;
+  }
+  await mergeConversationMetadata(app.db, params.phone, {
+    scheduling: {
+      status: "awaiting_slot",
+      visitPrompted: true,
+      offeredSlots: slots.map((slot) => slot.startsAt),
+      propertyCode: params.propertyCode,
+      updatedAt: new Date().toISOString(),
+    },
+  });
+  await appendHistory(
+    app.redis,
+    params.phone,
+    params.message,
+    replyText,
+    app.config.llm.maxHistoryTurns,
+  );
+  await recordMessageEvent(app.db, {
+    externalId: `${params.messageId}:out`,
+    phone: params.phone,
+    direction: "outbound",
+    status: "queued",
+    workflowStep: "chat",
+    metadata: {
+      reason: params.reason,
+      slots: slots.map((slot) => ({
+        option: slot.option,
+        startsAt: slot.startsAt,
+        label: slot.label,
+      })),
+    },
+  });
+  return {
+    shouldReply: true,
+    replyText,
+    conversationMode: "bot",
+    reason: params.reason,
+  };
+}
+
+function appointmentPayload(params: {
+  id: number;
+  phone: string;
+  startsAt: string;
+  endsAt: string;
+  timezone: string;
+  location: string;
+  customerName?: string | null;
+  propertyCode?: string | null;
+}) {
+  return {
+    id: params.id,
+    phone: params.phone,
+    startsAt: params.startsAt,
+    endsAt: params.endsAt,
+    label: formatSlotLabel(params.startsAt, params.timezone),
+    location: params.location,
+    customerName: params.customerName ?? null,
+    propertyCode: params.propertyCode ?? null,
+  };
+}
 
 export async function chatRoutes(app: FastifyInstance): Promise<void> {
   const config = app.config;
@@ -102,7 +250,8 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         metadata: { messageType: body.messageType },
       });
 
-      const mode = await getConversationMode(app.db, phone);
+      const conversationState = await getConversationState(app.db, phone);
+      const mode = conversationState?.mode ?? "bot";
       await touchConversation(app.db, phone, mode);
 
       if (
@@ -182,8 +331,11 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
 
       const contactName = contactNameEarly ?? displayName;
 
+      const schedulingState = getSchedulingState(conversationState?.metadata);
       const qualificationPatch = extractQualificationFromMessage(body.message);
-      if (qualificationPatch) {
+      const deferFinancialQual =
+        shouldDeferFinancialQualification(schedulingState);
+      if (qualificationPatch && !deferFinancialQual) {
         await mergeLeadQualification(
           app.db,
           phone,
@@ -192,6 +344,240 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         ).catch((err) => {
           request.log.warn({ err, phone }, "qualification merge failed");
         });
+      } else if (qualificationPatch?.visit_requested) {
+        await mergeLeadQualification(
+          app.db,
+          phone,
+          extracted.propertyCode,
+          { visit_requested: true },
+        ).catch((err) => {
+          request.log.warn({ err, phone }, "qualification merge failed");
+        });
+      }
+
+      if (
+        config.features.scheduling &&
+        schedulingState?.status === "awaiting_qualification_choice"
+      ) {
+        let replyText: string;
+        if (prefersQualificationAtMeeting(body.message)) {
+          replyText = buildQualificationClosedReply(contactName);
+          await mergeConversationMetadata(app.db, phone, {
+            scheduling: {
+              ...schedulingState,
+              status: "qualification_closed",
+              updatedAt: new Date().toISOString(),
+            },
+          });
+        } else if (prefersQualificationBeforeMeeting(body.message)) {
+          replyText = buildQualificationClosedReply(contactName);
+          await mergeConversationMetadata(app.db, phone, {
+            scheduling: {
+              ...schedulingState,
+              status: "qualification_closed",
+              updatedAt: new Date().toISOString(),
+            },
+          });
+        } else {
+          replyText =
+            "Para eu seguir: prefere conversar sobre financiamento e perfil na visita, ou quer adiantar algo rápido por aqui antes do encontro?";
+        }
+        await appendHistory(
+          app.redis,
+          phone,
+          body.message,
+          replyText,
+          config.llm.maxHistoryTurns,
+        );
+        await recordMessageEvent(app.db, {
+          externalId: `${body.messageId}:out`,
+          phone,
+          direction: "outbound",
+          status: "queued",
+          workflowStep: "chat",
+          metadata: { reason: "qualification_choice" },
+        });
+        return reply.send({
+          shouldReply: true,
+          replyText,
+          conversationMode: "bot",
+          reason: "qualification_choice",
+        } satisfies ChatResponse);
+      }
+
+      const historyEarly = await loadHistory(
+        app.redis,
+        phone,
+        config.llm.maxHistoryTurns,
+      );
+      const lastBotReply = [...historyEarly]
+        .reverse()
+        .find((turn) => turn.role === "assistant")?.content;
+      const visitPrompted =
+        schedulingState?.visitPrompted === true ||
+        schedulingState?.status === "awaiting_accept" ||
+        Boolean(lastBotReply && botMessageInvitesVisit(lastBotReply));
+      const acceptsVisit =
+        acceptsVisitAffirmative(body.message) &&
+        (visitPrompted || Boolean(qualificationPatch?.visit_requested));
+      const isAwaitingSchedulingChoice =
+        schedulingState?.status === "awaiting_slot";
+      const shouldHandleScheduling =
+        config.features.scheduling &&
+        (isAwaitingSchedulingChoice ||
+          acceptsVisit ||
+          Boolean(qualificationPatch?.visit_requested) ||
+          wantsScheduling(body.message));
+
+      if (shouldHandleScheduling) {
+        const slots = await listAvailableSlots(app.db, { limit: 5 });
+        const selectedSlot = findRequestedSlot(
+          body.message,
+          slots,
+          config.brand.timezone,
+        );
+
+        if (selectedSlot) {
+          const booking = await bookAppointment(app.db, {
+            phone,
+            startsAt: selectedSlot.startsAt,
+            customerName: contactName,
+            propertyCode:
+              extracted.propertyCode ?? schedulingState?.propertyCode ?? null,
+            metadata: {
+              source_message_id: body.messageId,
+              source: "sofia_chat",
+            },
+          });
+
+          if (booking.ok) {
+            const bookedPropertyCode =
+              extracted.propertyCode ?? schedulingState?.propertyCode ?? null;
+            await attachAppointmentToLead(app.db, phone, bookedPropertyCode, {
+              id: booking.appointment.id,
+              startsAt: booking.appointment.startsAt,
+              endsAt: booking.appointment.endsAt,
+              location: booking.appointment.location,
+            });
+            await mergeConversationMetadata(app.db, phone, {
+              scheduling: {
+                status: "awaiting_qualification_choice",
+                appointmentId: booking.appointment.id,
+                startsAt: booking.appointment.startsAt,
+                propertyCode:
+                  extracted.propertyCode ?? schedulingState?.propertyCode,
+                updatedAt: new Date().toISOString(),
+              },
+            });
+
+            const booked = appointmentPayload({
+              id: booking.appointment.id,
+              phone,
+              startsAt: booking.appointment.startsAt,
+              endsAt: booking.appointment.endsAt,
+              timezone: booking.appointment.timezone,
+              location: booking.appointment.location,
+              customerName: contactName,
+              propertyCode: bookedPropertyCode,
+            });
+            const replyText = buildBookedReply(
+              config.brand.brandName,
+              booked.label,
+              booked.location,
+              contactName,
+            );
+
+            await appendHistory(
+              app.redis,
+              phone,
+              body.message,
+              replyText,
+              config.llm.maxHistoryTurns,
+            );
+            await recordMessageEvent(app.db, {
+              externalId: `${body.messageId}:out`,
+              phone,
+              direction: "outbound",
+              status: "queued",
+              workflowStep: "chat",
+              metadata: {
+                reason: "appointment_booked",
+                appointment: booked,
+              },
+            });
+
+            return reply.send({
+              shouldReply: true,
+              replyText,
+              conversationMode: "bot",
+              reason: "appointment_booked",
+              appointmentBooked: booked,
+            } satisfies ChatResponse);
+          }
+
+          const replyText = `${buildSlotOfferReply(
+            booking.slots.slice(0, 5),
+          )}\n\nEsse horário acabou de ficar indisponível, então te mandei as opções atualizadas.`;
+          await mergeConversationMetadata(app.db, phone, {
+            scheduling: {
+              status: "awaiting_slot",
+              offeredSlots: booking.slots.slice(0, 5).map((slot) => slot.startsAt),
+              propertyCode: extracted.propertyCode,
+              updatedAt: new Date().toISOString(),
+            },
+          });
+          await appendHistory(
+            app.redis,
+            phone,
+            body.message,
+            replyText,
+            config.llm.maxHistoryTurns,
+          );
+          await recordMessageEvent(app.db, {
+            externalId: `${body.messageId}:out`,
+            phone,
+            direction: "outbound",
+            status: "queued",
+            workflowStep: "chat",
+            metadata: { reason: "appointment_slot_unavailable" },
+          });
+          return reply.send({
+            shouldReply: true,
+            replyText,
+            conversationMode: "bot",
+            reason: "appointment_slot_unavailable",
+          } satisfies ChatResponse);
+        }
+
+        if (isAwaitingSchedulingChoice) {
+          return reply.send(
+            await offerSlotsDeterministic(app, {
+              phone,
+              messageId: body.messageId,
+              message: body.message,
+              propertyCode:
+                extracted.propertyCode ?? schedulingState?.propertyCode,
+              reason: "appointment_slot_retry",
+              slotMismatch: true,
+            }),
+          );
+        }
+
+        if (
+          acceptsVisit ||
+          qualificationPatch?.visit_requested ||
+          wantsScheduling(body.message)
+        ) {
+          return reply.send(
+            await offerSlotsDeterministic(app, {
+              phone,
+              messageId: body.messageId,
+              message: body.message,
+              propertyCode: extracted.propertyCode,
+              reason: "appointment_slots_offered",
+            }),
+          );
+        }
       }
 
       let replyText: string;
@@ -208,11 +594,16 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         | { error: string }
         | undefined;
 
-      const history = await loadHistory(
-        app.redis,
-        phone,
-        config.llm.maxHistoryTurns,
-      );
+      const history = historyEarly;
+      let schedulingBlock: string | undefined;
+      if (
+        config.features.scheduling &&
+        schedulingState?.status !== "awaiting_slot" &&
+        schedulingState?.status !== "qualification_closed"
+      ) {
+        const slots = await listAvailableSlots(app.db, { limit: 5 });
+        schedulingBlock = formatSlotsForPrompt(slots);
+      }
 
       let propertyKnowledge: string | undefined;
       let ragSkipReason: string | undefined;
@@ -268,6 +659,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
               propertyCode: extracted.propertyCode,
               intent,
               qualificationHint,
+              schedulingBlock,
             },
             llm: {
               provider: config.llm.provider,
@@ -288,6 +680,22 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
             replyText,
             config.llm.maxHistoryTurns,
           );
+
+          if (
+            config.features.scheduling &&
+            botMessageInvitesVisit(replyText) &&
+            schedulingState?.status !== "awaiting_slot" &&
+            schedulingState?.status !== "awaiting_qualification_choice"
+          ) {
+            await mergeConversationMetadata(app.db, phone, {
+              scheduling: {
+                status: "awaiting_accept",
+                visitPrompted: true,
+                propertyCode: extracted.propertyCode,
+                updatedAt: new Date().toISOString(),
+              },
+            });
+          }
         } catch (llmErr) {
           llmErrorDetail =
             llmErr instanceof Error ? llmErr.message : String(llmErr);

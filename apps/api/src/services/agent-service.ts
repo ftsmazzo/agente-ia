@@ -14,6 +14,7 @@ export type AgentContext = {
   intent: MessageIntent;
   /** Só critérios extraídos da mensagem atual (não do histórico Redis). */
   qualificationHint?: string;
+  schedulingBlock?: string;
 };
 
 function buildRuntimeContext(
@@ -135,9 +136,22 @@ export async function generateAgentReply(params: {
         "Proibido: títulos de catálogo, tabelas, bullets com 'código — valor — bairro' em sequência mecânica.",
         "É proibido dizer que não há imóveis no bairro se o bloco listar opções.",
         "Não confirme quartos, banheiros ou vagas que o cliente não disse na mensagem atual.",
-        "Convite à visita na imobiliária: leve, no final, sem pressão.",
+        "Convite à visita na imobiliária: leve, no final, sem pressão — sem perguntas financeiras.",
       );
     }
+  }
+
+  if (params.context.schedulingBlock) {
+    parts.push("", params.context.schedulingBlock);
+    parts.push(
+      "",
+      "## Instrução obrigatória (agenda)",
+      "Use somente os horários listados em [AGENDA DO SISTEMA].",
+      "Não invente datas, horários, disponibilidade, endereço ou confirmação de agenda.",
+      "Se o cliente pedir um horário fora da lista, ofereça os horários disponíveis ou diga que vai verificar com a equipe.",
+      "Não pergunte renda, financiamento, entrada, FGTS, simulações ou prazo de compra até a visita estar confirmada pelo sistema.",
+      "Se o cliente aceitar visita, convide e pare — o sistema enviará a lista numerada de horários.",
+    );
   }
 
   const provider = createLlmProvider(params.llm);

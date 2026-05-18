@@ -107,3 +107,48 @@ export async function mergeLeadQualification(
   );
   return true;
 }
+
+export async function attachAppointmentToLead(
+  pool: pg.Pool,
+  phone: string,
+  propertyCode: string | null,
+  appointment: {
+    id: number;
+    startsAt: string;
+    endsAt: string;
+    location: string;
+  },
+): Promise<void> {
+  await pool.query(
+    `INSERT INTO app.contacts (phone, updated_at)
+     VALUES ($1, NOW())
+     ON CONFLICT (phone) DO UPDATE SET updated_at = NOW()`,
+    [phone],
+  );
+
+  const payload = JSON.stringify({
+    id: appointment.id,
+    starts_at: appointment.startsAt,
+    ends_at: appointment.endsAt,
+    location: appointment.location,
+  });
+
+  const updated = await pool.query(
+    `UPDATE app.lead_actions
+     SET status = 'visit_scheduled',
+         metadata = metadata || jsonb_build_object('appointment', $3::jsonb),
+         updated_at = NOW()
+     WHERE phone = $1
+       AND COALESCE(property_code, '') = COALESCE($2::text, '')
+     RETURNING id`,
+    [phone, propertyCode, payload],
+  );
+
+  if ((updated.rowCount ?? 0) > 0) return;
+
+  await pool.query(
+    `INSERT INTO app.lead_actions (phone, property_code, status, metadata, updated_at)
+     VALUES ($1, $2, 'visit_scheduled', jsonb_build_object('appointment', $3::jsonb), NOW())`,
+    [phone, propertyCode, payload],
+  );
+}

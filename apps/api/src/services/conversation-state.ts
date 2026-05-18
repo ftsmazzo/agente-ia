@@ -97,3 +97,18 @@ export async function setConversationMode(
     ],
   );
 }
+
+export async function mergeConversationMetadata(
+  pool: pg.Pool,
+  phone: string,
+  metadataPatch: Record<string, unknown>,
+): Promise<void> {
+  await pool.query(
+    `INSERT INTO app.conversation_state (phone, mode, metadata, updated_at)
+     VALUES ($1, 'bot', $2::jsonb, NOW())
+     ON CONFLICT (phone) DO UPDATE SET
+       metadata = app.conversation_state.metadata || EXCLUDED.metadata,
+       updated_at = NOW()`,
+    [phone, JSON.stringify(metadataPatch)],
+  );
+}

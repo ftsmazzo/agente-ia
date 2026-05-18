@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-05-18
+
+### Added
+
+- Agenda própria no Postgres (`app.appointment_settings`, `app.appointments`)
+- Rotas `/v1/scheduling/*` para slots, booking, listagem, status e `.ics`
+- SofIA oferece e confirma apenas horários calculados pela API
+- `appointmentBooked` no `/v1/chat` para notificação imediata via n8n
+- [docs/agenda.md](./docs/agenda.md)
+
 ## [0.9.0] - 2026-05-18
 
 ### Added

@@ -7,6 +7,7 @@ import { chatRoutes } from "./routes/v1/chat.js";
 import { conversationRoutes } from "./routes/v1/conversation.js";
 import { debounceRoutes } from "./routes/v1/debounce.js";
 import { configRoutes } from "./routes/v1/config.js";
+import { schedulingRoutes } from "./routes/v1/scheduling.js";
 
 async function main(): Promise<void> {
   const config = loadAppConfig();
@@ -30,6 +31,7 @@ async function main(): Promise<void> {
   await chatRoutes(app);
   await conversationRoutes(app);
   await debounceRoutes(app);
+  await schedulingRoutes(app);
 
   await app.listen({ port: config.port, host: "0.0.0.0" });
 

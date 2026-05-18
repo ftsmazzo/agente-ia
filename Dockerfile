@@ -44,7 +44,7 @@ COPY scripts/wait-for-database.mjs scripts/run-migrations.mjs scripts/reset-dev-
 
 ENV APP_ROOT=/app
 ENV RUN_MIGRATIONS_ON_START=true
-ENV APP_VERSION=0.9.0
+ENV APP_VERSION=0.10.0
 
 RUN chown -R realty:realty /app/db /app/scripts
 

@@ -40,6 +40,8 @@ No app **n8n** do EasyPanel, adicione (Environment, não Build Args):
 | `EVOLUTION_BASE_URL` | `http://evolution:8080` | Base da Evolution |
 | `EVOLUTION_API_KEY` | *(sua apikey)* | Header `apikey` na Evolution |
 | `DEBOUNCE_MS` | `3000` | Janela de debounce (igual na API) |
+| `APPOINTMENT_NOTIFY_PHONE` | `5516999999999` | Opcional: corretor que recebe alerta de visita agendada |
+| `PUBLIC_AGENT_API_URL` | `https://agent-ia.seudominio.com` | Opcional: URL pública para link `.ics` |
 
 Modelo: [n8n/env.easypanel.example](../n8n/env.easypanel.example)
 
@@ -114,7 +116,7 @@ curl -X POST http://agent-ia:3000/v1/chat \
 | Debounce | ✅ API `/v1/debounce/wait-and-merge` + Redis |
 | Áudio | Transcrição + resposta ElevenLabs |
 | Erro global | Workflow `05-error-notify` |
-| Chatwoot | Bridge + handoff visual |
+| Chatwoot | ✅ Bridge Evolution + workflow `04-sync-chatwoot` (handoff) |
 | LLM | Motor SofIA na API (fase 2) |
 
 ## 7. Problemas comuns

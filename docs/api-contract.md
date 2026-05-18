@@ -110,6 +110,7 @@ Chamado pelo n8n após debounce e idempotência.
 | `replyText` | Texto quando `shouldReply=true` |
 | `replyAudio` | Sugestão para n8n enviar áudio |
 | `conversationMode` | `bot` \| `human` \| `paused` |
+| `appointmentBooked` | Presente quando a SofIA confirmou uma visita; usado pelo n8n para notificar o corretor |
 
 **Erros**
 
@@ -118,6 +119,21 @@ Chamado pelo n8n após debounce e idempotência.
 | 400 | `validation_error` |
 | 401 | `unauthorized` |
 | 500 | `prompt_load_failed` |
+
+## Agenda própria
+
+Rotas internas para Postgres como fonte oficial da agenda. Todas usam `X-API-Key`.
+
+| Rota | Uso |
+|------|-----|
+| `GET /v1/scheduling/settings` | Configuração atual da agenda |
+| `GET /v1/scheduling/slots?days=7&limit=5` | Slots disponíveis |
+| `POST /v1/scheduling/book` | Confirmar slot disponível |
+| `GET /v1/scheduling/appointments` | Listagem para futura UI |
+| `PATCH /v1/scheduling/appointments/:id` | Cancelar/concluir/remarcar por status |
+| `GET /v1/scheduling/appointments/:id/ics` | Arquivo `.ics` manual |
+
+Mais detalhes: [agenda.md](./agenda.md).
 
 ## Versionamento
 

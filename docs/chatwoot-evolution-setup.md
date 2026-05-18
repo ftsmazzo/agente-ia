@@ -46,6 +46,7 @@ Na instância WhatsApp → integração **Chatwoot**:
 | Inbox name | Ex.: `Pazotti WhatsApp` |
 | Sign msg | Opcional (assinatura do agente) |
 | Reopen conversation | `true` (recomendado) |
+| **Conversation Pending** | **`false`** (se ligado, conversas ficam em **Pendente**, não em Abertas) |
 | Merge Brazil contacts | `true` (recomendado para BR) |
 
 ### API (alternativa)
@@ -122,7 +123,20 @@ curl "http://agent-ia:3000/v1/conversation?phone=5516999999999" \
 
 ---
 
-## 6. Problemas comuns
+## 6. “Não aparece no Chatwoot” mas o log mostra mensagem
+
+Se no log do Chatwoot aparece `POST .../messages` com `"Bom dia"` e IP `172.18.0.1` (Evolution), a bridge **funciona**.
+
+Causa mais comum no painel:
+
+| No Chatwoot | O que fazer |
+|-------------|-------------|
+| Aba **Abertas** + filtro **Atribuídas a mim** | Troque para **Pendente** ou **Todas** / **Não atribuídas** |
+| Evolution com **Conversation Pending = ligado** | Desligue — conversas vão para fila **Pendente** |
+
+Nos seus logs (15:07:39 UTC), a Evolution criou a conversa do Frederico com `"status" => "pending"` — por isso não aparecia em `status=open`.
+
+## 7. Problemas comuns
 
 | Sintoma | Causa provável |
 |---------|----------------|
@@ -134,15 +148,10 @@ curl "http://agent-ia:3000/v1/conversation?phone=5516999999999" \
 
 ---
 
-## 7. Próximo passo (automação)
+## 7. Handoff automático (webhook)
 
-Webhook do Chatwoot → n8n → `POST /v1/conversation/mode` quando:
+Importe e ative: **`n8n/workflows/04-sync-chatwoot.json`**
 
-- conversa **atribuída** a agente → `human`
-- conversa **resolvida** → `bot`
+Passo a passo completo: [handoff-chatwoot.md](./handoff-chatwoot.md)
 
-Workflow planejado: `n8n/workflows/04-sync-chatwoot.json`.
-
-Até lá, no teste manual use o `curl` da seção 4 ao atribuir no Chatwoot.
-
-Mais contexto: [handoff-chatwoot.md](./handoff-chatwoot.md)
+Resumo: Chatwoot webhook → URL `.../webhook/chatwoot-sync` → API `POST /v1/conversation/mode`.

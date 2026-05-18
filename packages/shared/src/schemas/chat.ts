@@ -28,6 +28,18 @@ export const chatResponseSchema = z.object({
   replyAudio: z.boolean().optional(),
   conversationMode: z.enum(["bot", "human", "paused"]),
   reason: z.string().optional(),
+  appointmentBooked: z
+    .object({
+      id: z.number(),
+      phone: z.string(),
+      startsAt: z.string(),
+      endsAt: z.string(),
+      label: z.string(),
+      location: z.string(),
+      customerName: z.string().nullable().optional(),
+      propertyCode: z.string().nullable().optional(),
+    })
+    .optional(),
   /** Presente quando reason = llm_fallback (debug no n8n) */
   llmError: z.string().optional(),
 });

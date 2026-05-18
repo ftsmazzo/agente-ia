@@ -16,6 +16,7 @@
 | [operations-production.md](./operations-production.md) | Checklist produção EasyPanel |
 | [handoff-chatwoot.md](./handoff-chatwoot.md) | Handoff humano + API Chatwoot |
 | [chatwoot-evolution-setup.md](./chatwoot-evolution-setup.md) | Conectar Chatwoot na Evolution (teste) |
+| [agenda.md](./agenda.md) | Agenda própria no Postgres + notificação |
 | [arquitetura-persona-rag.md](./arquitetura-persona-rag.md) | Persona, RAG, OpenAI vs Claude |
 | [rag-integracao.md](./rag-integracao.md) | RAG imóveis — env, indexação, validação |
 | [dados-gravados.md](./dados-gravados.md) | O que vai para o Postgres |

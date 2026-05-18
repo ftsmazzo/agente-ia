@@ -238,6 +238,66 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [1820, 40]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-appointment",
+              "leftValue": "={{ Boolean($json.appointmentBooked?.id) && Boolean($env.APPOINTMENT_NOTIFY_PHONE) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1000001-0001-4001-8001-000000000009",
+      "name": "Agendamento confirmado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1560, 320]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Normalizar').item.json.evolutionUrl }}/message/sendText/{{ $('Normalizar').item.json.instance }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $env.APPOINTMENT_NOTIFY_PHONE, text: `Nova visita agendada pela SofIA\\n\\nCliente: ${$json.appointmentBooked.customerName || 'não informado'}\\nTelefone: ${$json.appointmentBooked.phone}\\nHorário: ${$json.appointmentBooked.label}\\nLocal: ${$json.appointmentBooked.location}${$json.appointmentBooked.propertyCode ? `\\nImóvel: ${$json.appointmentBooked.propertyCode}` : ''}\\n\\nICS: ${($env.PUBLIC_AGENT_API_URL || $env.AGENT_API_URL)}/v1/scheduling/appointments/${$json.appointmentBooked.id}/ics` }) }}",
+        "options": {}
+      },
+      "id": "a1000001-0001-4001-8001-000000000010",
+      "name": "Avisar corretor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1820, 300]
     }
   ],
   "connections": {
@@ -303,6 +363,11 @@
             "node": "Deve responder?",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Agendamento confirmado?",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -312,6 +377,17 @@
         [
           {
             "node": "Evolution Enviar Texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agendamento confirmado?": {
+      "main": [
+        [
+          {
+            "node": "Avisar corretor",
             "type": "main",
             "index": 0
           }
