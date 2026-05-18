@@ -2,6 +2,8 @@
 
 API do agente consulta o [RAG Knowledge Base](https://rag.fabricadosdados.ia.br/api-docs) antes do LLM e injeta o bloco `[DADOS DO SISTEMA]`.
 
+**Não é obrigatório** ter tabela Postgres de imóveis: com chunks `Referência: AP####` (1 linha = 1 chunk), a API parseia bairro, valor, dormitórios e monta a ficha para a SofIA. Postgres serve para CRM/leads; catálogo pode ficar só no RAG.
+
 ## Fluxo
 
 ```text

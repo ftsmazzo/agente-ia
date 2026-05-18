@@ -70,7 +70,10 @@ function buildRuntimeContext(
   });
   lines.push(`- Data/hora de referência: ${nowLabel} (${brand.timezone})`);
   lines.push(
-    "- Formato: WhatsApp, português BR, mensagem concisa (até ~3 blocos curtos).",
+    "- Formato: WhatsApp, português BR, tom de corretora experiente (calorosa, persuasiva, sem parecer catálogo ou robô).",
+  );
+  lines.push(
+    "- Até ~3 blocos curtos; evite listas com títulos técnicos (ex.: 'Opções (código — valor — bairro)').",
   );
 
   return lines.join("\n");
@@ -84,19 +87,23 @@ export function formatPropertyKnowledgeBlock(
     return "[DADOS DO SISTEMA]\nNenhum imóvel encontrado para estes critérios ainda.\n[/DADOS DO SISTEMA]";
   }
   const lines = records.map((r, i) => {
+    if (typeof r.card === "string" && r.card.trim()) {
+      return r.card.trim();
+    }
     const code = r.property_code ?? r.codigo ?? "?";
     const summary = r.summary ?? r.titulo ?? JSON.stringify(r);
     const link =
       typeof r.link === "string" && r.link.trim()
-        ? ` | ${r.link.trim()}`
+        ? `\nLink: ${r.link.trim()}`
         : "";
-    const score =
-      typeof r.similarity === "number"
-        ? ` (relevância ${(r.similarity * 100).toFixed(0)}%)`
-        : "";
-    return `${i + 1}. ${code}: ${summary}${link}${score}`;
+    return `IMÓVEL ${i + 1} — ${code}\n${summary}${link}`;
   });
-  return `[DADOS DO SISTEMA]\n${lines.join("\n")}\n[/DADOS DO SISTEMA]`;
+  return `[DADOS DO SISTEMA]
+Use as fichas abaixo para redigir a resposta (tom humano, WhatsApp). Não copie rótulos como "Opções (código — valor)".
+
+${lines.join("\n\n")}
+
+[/DADOS DO SISTEMA]`;
 }
 
 export async function generateAgentReply(params: {
@@ -122,10 +129,13 @@ export async function generateAgentReply(params: {
     ) {
       parts.push(
         "",
-        "## Instrução obrigatória",
-        "O bloco [DADOS DO SISTEMA] acima contém anúncios reais. Apresente até 3 opções (código AP, valor, bairro).",
+        "## Instrução obrigatória (tom humano)",
+        "O bloco [DADOS DO SISTEMA] traz fichas reais (código AP, valor, bairro, metragem, link).",
+        "Apresente até 3 imóveis em linguagem natural — como uma corretora contando para um amigo: gancho emocional + 2–3 dados + link em linha separada.",
+        "Proibido: títulos de catálogo, tabelas, bullets com 'código — valor — bairro' em sequência mecânica.",
         "É proibido dizer que não há imóveis no bairro se o bloco listar opções.",
         "Não confirme quartos, banheiros ou vagas que o cliente não disse na mensagem atual.",
+        "Convite à visita na imobiliária: leve, no final, sem pressão.",
       );
     }
   }

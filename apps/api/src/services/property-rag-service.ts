@@ -9,6 +9,8 @@ import {
 import {
   extractBairroFromSpreadsheetText,
   extractCodeFromSpreadsheetText,
+  formatSpreadsheetListingCard,
+  parseSpreadsheetListing,
 } from "../lib/rag-spreadsheet-row.js";
 import {
   criteriaFromHistory,
@@ -53,6 +55,7 @@ export function buildRagQuery(params: {
 
   if (params.intent === "property_by_code" && params.propertyCode) {
     parts.push(
+      `Referência: ${params.propertyCode}`,
       `imóvel à venda código ${params.propertyCode}`,
       params.brandName,
     );
@@ -113,26 +116,41 @@ function inferTipoFromRow(raw: string): string | null {
   return match?.[1]?.trim() ?? null;
 }
 
+const MAX_LISTINGS_FOR_LLM = 3;
+
 function listingToRecord(
   listing: ParsedListing,
   brand: BrandConfig,
 ): Record<string, unknown> {
   const website = brand.brandWebsite?.replace(/\/$/, "") ?? "";
+  const link = website
+    ? `${website}/imovel/${listing.property_code}`
+    : undefined;
+
+  const fields =
+    listing.fields ?? parseSpreadsheetListing(listing.raw) ?? undefined;
+
+  if (fields) {
+    return {
+      property_code: fields.property_code,
+      card: formatSpreadsheetListingCard(fields, link),
+      fields,
+      ...(link ? { link } : {}),
+    };
+  }
+
   const bairro = inferBairroFromRow(listing.raw);
   const tipo = inferTipoFromRow(listing.raw);
   const summaryParts = [
     tipo ? `Tipo: ${tipo}` : null,
     bairro ? `Bairro: ${bairro}` : null,
-    sanitizeSnippet(listing.raw).slice(0, 500),
+    sanitizeSnippet(listing.raw).slice(0, 400),
   ].filter(Boolean);
 
   return {
     property_code: listing.property_code,
-    titulo: listing.property_code,
-    summary: summaryParts.join(" | "),
-    ...(website
-      ? { link: `${website}/imovel/${listing.property_code}` }
-      : {}),
+    card: summaryParts.join(" | "),
+    ...(link ? { link } : {}),
   };
 }
 
@@ -149,7 +167,9 @@ function sourcesToRecords(
   const filtered = filterListingsByCriteria(allListings, criteria, 8);
 
   if (filtered.length > 0) {
-    return filtered.map((l) => listingToRecord(l, brand));
+    return filtered
+      .slice(0, MAX_LISTINGS_FOR_LLM)
+      .map((l) => listingToRecord(l, brand));
   }
 
   const website = brand.brandWebsite?.replace(/\/$/, "") ?? "";
@@ -177,7 +197,8 @@ function buildKnowledgeBlock(
   const innerParts: string[] = [];
   const answerText = ragAnswer?.trim() ?? "";
 
-  if (answerText) {
+  // Com fichas parseadas dos chunks, não duplicar o texto cru do RAG (evita lista robótica)
+  if (answerText && records.length === 0) {
     innerParts.push(sanitizeSnippet(answerText).slice(0, 2000));
   }
 
@@ -265,6 +286,18 @@ export async function fetchPropertyKnowledgeFromRag(params: {
   const parsedFromCsv = matched.length > 0;
 
   let records = sourcesToRecords(result.sources, params.brand, criteria);
+
+  if (
+    params.intent === "property_by_code" &&
+    params.propertyCode &&
+    allListings.length > 0
+  ) {
+    const code = params.propertyCode.toUpperCase();
+    const exact = allListings.find((l) => l.property_code === code);
+    if (exact) {
+      records = [listingToRecord(exact, params.brand)];
+    }
+  }
 
   if (records.length === 0 && result.answer && !result.sources.length) {
     records = [

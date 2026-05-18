@@ -139,8 +139,9 @@ export function textMatchesNeighborhood(
   if (!n) return false;
 
   const bairroField = h.match(/bairro:\s*([^|]+)/i)?.[1]?.trim();
-  if (bairroField && normalizeForMatch(bairroField).includes(n)) {
-    return true;
+  if (bairroField) {
+    const bNorm = normalizeForMatch(bairroField);
+    if (bNorm.includes(n) || n.includes(bNorm)) return true;
   }
 
   if (h.includes(n)) return true;
@@ -166,23 +167,37 @@ export function rowMatchesCriteria(
 
   if (criteria.bedrooms !== null) {
     const q = criteria.bedrooms;
-    const hasBedrooms =
-      rowText.includes(`,${q},`) ||
-      new RegExp(`,${q},\\d+,\\d+,`).test(rowText);
-    if (!hasBedrooms) return false;
+    const sheetBed = rowText.match(/Dormitórios:\s*(\d+)/i)?.[1];
+    if (sheetBed !== undefined) {
+      if (Number(sheetBed) !== q) return false;
+    } else {
+      const hasBedrooms =
+        rowText.includes(`,${q},`) ||
+        new RegExp(`,${q},\\d+,\\d+,`).test(rowText);
+      if (!hasBedrooms) return false;
+    }
   }
 
   if (criteria.bathrooms !== null) {
     const b = criteria.bathrooms;
-    if (!rowText.includes(`,${b},`) && !rowText.includes(`,${b},0,`)) {
+    const sheetBath = rowText.match(/Banheiros?:\s*(\d+)/i)?.[1];
+    if (sheetBath !== undefined) {
+      if (Number(sheetBath) !== b) return false;
+    } else if (
+      !rowText.includes(`,${b},`) &&
+      !rowText.includes(`,${b},0,`)
+    ) {
       return false;
     }
   }
 
   if (criteria.propertyTypes.length > 0) {
-    const typeHit = criteria.propertyTypes.some((t) =>
-      rowText.toLowerCase().includes(t),
-    );
+    const tipoField = rowText.match(/Tipo:\s*([^|]+)/i)?.[1]?.toLowerCase();
+    const typeHit = criteria.propertyTypes.some((t) => {
+      const needle = t.toLowerCase();
+      if (tipoField?.includes(needle)) return true;
+      return rowText.toLowerCase().includes(needle);
+    });
     if (!typeHit) return false;
   }
 

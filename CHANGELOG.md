@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.5] - 2026-05-18
+
+### Added
+
+- Parser completo de chunks `Referência: AP####` (valor, bairro, dorm., área, condomínio)
+- Fichas estruturadas no `[DADOS DO SISTEMA]` para tom humano no WhatsApp
+
+### Changed
+
+- Query por código inclui `Referência: AP####` (melhor match no RAG)
+- Até 3 imóveis por resposta; sem duplicar texto cru do RAG quando há fichas parseadas
+- Persona e instruções: proibir catálogo robótico; tom persuasivo
+
 ## [0.7.4] - 2026-05-18
 
 ### Added
