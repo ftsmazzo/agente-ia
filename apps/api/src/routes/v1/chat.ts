@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { chatRequestSchema, type ChatResponse } from "@realty/shared";
 import { extractFromMessage } from "../../lib/extract-message.js";
+import { findCatalogCodeInMessage } from "../../services/generic-catalog-service.js";
 import { classifyMessageIntent } from "../../lib/message-intent.js";
 import {
   extractRagSearchCriteria,
@@ -365,6 +366,16 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const extracted = extractFromMessage(body.message);
+      if (!extracted.propertyCode) {
+        const fromCatalog = await findCatalogCodeInMessage(
+          app.db,
+          body.message,
+        );
+        if (fromCatalog) {
+          extracted.propertyCode = fromCatalog;
+          extracted.hasPropertyInterest = true;
+        }
+      }
       const intent = classifyMessageIntent(body.message, extracted);
       const displayName = resolveDisplayName(body.metadata, body.message);
 

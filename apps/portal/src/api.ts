@@ -76,6 +76,22 @@ export type CatalogStats = {
   total: number;
   active: number;
   lastImportedAt: string | null;
+  columns: Array<{ key: string; label: string }>;
+};
+
+export type CatalogPreview = {
+  columns: Array<{ key: string; label: string; inferredType: string }>;
+  delimiter: string;
+  rowCount: number;
+  itemCodeKey: string;
+  titleKey: string | null;
+  activeKey: string | null;
+  sample: Array<{
+    itemCode: string;
+    title: string | null;
+    active: boolean;
+    fields: Record<string, string>;
+  }>;
 };
 
 export type Appointment = {
@@ -212,15 +228,31 @@ export const api = {
   getCatalog() {
     return request<{ catalog: CatalogStats }>("/v1/portal/catalog");
   },
-  importCatalog(file: File) {
+  previewCatalog(file: File) {
     const form = new FormData();
     form.append("file", file);
+    return request<{ preview: CatalogPreview }>(
+      "/v1/portal/catalog/preview",
+      { method: "POST", body: form },
+    );
+  },
+  importCatalog(
+    file: File,
+    opts: { itemCodeKey: string; titleKey?: string; activeKey?: string },
+  ) {
+    const form = new FormData();
+    form.append("file", file);
+    const q = new URLSearchParams();
+    q.set("itemCodeKey", opts.itemCodeKey);
+    if (opts.titleKey) q.set("titleKey", opts.titleKey);
+    if (opts.activeKey) q.set("activeKey", opts.activeKey);
     return request<{
       ok: boolean;
       upserted: number;
       activeCount: number;
       total: number;
-    }>("/v1/portal/catalog/import", { method: "POST", body: form });
+      columns: Array<{ key: string; label: string }>;
+    }>(`/v1/portal/catalog/import?${q}`, { method: "POST", body: form });
   },
   getAppointments(params?: { status?: string; limit?: number }) {
     const q = new URLSearchParams();

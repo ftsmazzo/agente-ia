@@ -40,15 +40,14 @@ COPY --from=builder /app/config/prompts ./config/prompts
 
 # Migrations run automatically on container start (docker-entrypoint.mjs)
 COPY db/migrations ./db/migrations
-COPY scripts/wait-for-database.mjs scripts/run-migrations.mjs scripts/reset-dev-data.mjs scripts/import-properties.mjs scripts/seed-portal-users.mjs scripts/docker-entrypoint.mjs ./scripts/
+COPY scripts/wait-for-database.mjs scripts/run-migrations.mjs scripts/reset-dev-data.mjs scripts/import-catalog.mjs scripts/import-properties.mjs scripts/seed-portal-users.mjs scripts/docker-entrypoint.mjs ./scripts/
 COPY scripts/lib ./scripts/lib/
 COPY planilha/Imoveis.xlsx ./planilha/Imoveis.xlsx
 
 ENV APP_ROOT=/app
 ENV RUN_MIGRATIONS_ON_START=true
-ENV APP_VERSION=0.13.2
-ENV PROPERTIES_IMPORT_ON_START=true
-ENV PROPERTIES_XLSX_PATH=/app/planilha/Imoveis.xlsx
+ENV APP_VERSION=0.14.0
+ENV CATALOG_IMPORT_ON_START=false
 
 RUN chown -R realty:realty /app/db /app/scripts /app/planilha
 

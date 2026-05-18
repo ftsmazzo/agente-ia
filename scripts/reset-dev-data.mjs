@@ -47,9 +47,16 @@ const client = new pg.default.Client({ connectionString: databaseUrl });
 try {
   await client.connect();
   await client.query(`
+    UPDATE app.catalog_meta
+    SET columns = '[]'::jsonb, row_count = 0, source_filename = NULL, updated_at = NOW()
+    WHERE id = 1
+  `);
+
+  await client.query(`
     TRUNCATE TABLE
       app.appointments,
       app.portal_users,
+      app.catalog_items,
       app.properties,
       app.failed_messages,
       app.lead_actions,

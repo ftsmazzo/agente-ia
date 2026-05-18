@@ -29,8 +29,8 @@ if (process.env.RESET_DEV_DATA_ON_START === "true") {
   runNodeScript("resetting dev data (Postgres + Redis)", "/app/scripts/reset-dev-data.mjs");
 }
 
-if (process.env.PROPERTIES_IMPORT_ON_START !== "false") {
-  runNodeScript("importing property catalog", "/app/scripts/import-properties.mjs");
+if (process.env.CATALOG_IMPORT_ON_START !== "false") {
+  runNodeScript("importing generic catalog CSV", "/app/scripts/import-catalog.mjs");
 }
 
 if (process.env.PORTAL_SEED_ON_START !== "false") {

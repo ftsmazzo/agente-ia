@@ -41,12 +41,12 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
         const props = await getPool(config.databaseUrl).query<{
           count: string;
         }>(
-          `SELECT COUNT(*)::text AS count FROM app.properties WHERE active = TRUE`,
+          `SELECT COUNT(*)::text AS count FROM app.catalog_items WHERE active = TRUE`,
         );
         propertiesActive = Number(props.rows[0]?.count ?? 0);
         if (propertiesActive === 0) {
           warnings.push(
-            "Catálogo app.properties vazio — busca por código usará só RAG",
+            "Catálogo app.catalog_items vazio — busca estruturada usará só RAG",
           );
         }
       }

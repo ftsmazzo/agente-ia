@@ -5,11 +5,11 @@ import type { MessageIntent } from "../lib/message-intent.js";
 import { criteriaFromHistory } from "../lib/rag-search-criteria.js";
 import type { ChatTurn } from "./conversation-history.js";
 import {
-  buildKnowledgeBlockFromProperties,
-  countActiveProperties,
-  getPropertyByCode,
-  searchPropertiesByCriteria,
-} from "./property-catalog-service.js";
+  buildKnowledgeBlockFromCatalog,
+  countActiveCatalogItems,
+  getCatalogItemByCode,
+  searchCatalogByCriteria,
+} from "./generic-catalog-service.js";
 import {
   fetchPropertyKnowledgeFromRag,
   shouldQueryPropertyRag,
@@ -26,7 +26,7 @@ export type PropertyKnowledgeResult = {
 };
 
 /**
- * Postgres (planilha) primeiro; RAG só se catálogo vazio ou sem match.
+ * Catálogo genérico (CSV) primeiro; RAG só se vazio ou sem match.
  */
 export async function fetchPropertyKnowledge(params: {
   pool: pg.Pool;
@@ -41,7 +41,7 @@ export async function fetchPropertyKnowledge(params: {
     return undefined;
   }
 
-  const catalogCount = await countActiveProperties(params.pool);
+  const catalogCount = await countActiveCatalogItems(params.pool);
   if (catalogCount === 0) {
     const ragOnly = await fetchPropertyKnowledgeFromRag(params);
     if (!ragOnly?.block) return undefined;
@@ -62,13 +62,13 @@ export async function fetchPropertyKnowledge(params: {
   );
 
   if (params.intent === "property_by_code" && params.propertyCode) {
-    const found = await getPropertyByCode(
+    const found = await getCatalogItemByCode(
       params.pool,
       params.propertyCode,
     );
     if (found) {
       return {
-        block: buildKnowledgeBlockFromProperties([found], params.brand, criteria),
+        block: buildKnowledgeBlockFromCatalog([found], criteria),
         source: "catalog",
         sourceCount: 1,
         matchedListings: 1,
@@ -91,40 +91,45 @@ export async function fetchPropertyKnowledge(params: {
 
     return {
       block: `[DADOS DO SISTEMA]
-Não encontrei o imóvel ${params.propertyCode.toUpperCase()} no catálogo atual.
-Informe que está verificando a disponibilidade — não invente ficha.
+Não encontrei o item ${params.propertyCode} no catálogo atual.
 [/DADOS DO SISTEMA]`,
       source: "catalog",
       sourceCount: 0,
-      matchedListings: 0,
-      parsedListings: 0,
     };
   }
 
   if (params.intent === "property_by_criteria") {
-    const matches = await searchPropertiesByCriteria(
+    const matches = await searchCatalogByCriteria(
       params.pool,
       criteria,
       8,
     );
     if (matches.length > 0) {
       return {
-        block: buildKnowledgeBlockFromProperties(
-          matches,
-          params.brand,
-          criteria,
-        ),
+        block: buildKnowledgeBlockFromCatalog(matches, criteria),
         source: "catalog",
         sourceCount: matches.length,
         matchedListings: matches.length,
         parsedListings: matches.length,
       };
     }
+
+    const ragFallback = await fetchPropertyKnowledgeFromRag(params);
+    if (ragFallback?.block) {
+      return {
+        block: ragFallback.block,
+        source: "rag",
+        sourceCount: ragFallback.sourceCount,
+        ragQuery: ragFallback.ragQuery,
+        parsedListings: ragFallback.parsedListings,
+        matchedListings: ragFallback.matchedListings,
+        hadRagAnswer: ragFallback.hadRagAnswer,
+      };
+    }
   }
 
   const ragResult = await fetchPropertyKnowledgeFromRag(params);
   if (!ragResult?.block) return undefined;
-
   return {
     block: ragResult.block,
     source: "rag",

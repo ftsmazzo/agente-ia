@@ -18,9 +18,10 @@ import {
   type AppointmentStatus,
 } from "../../services/scheduling-service.js";
 import {
-  getCatalogStats,
-  importPropertiesFromUpload,
-} from "../../services/property-import-service.js";
+  importCatalogCsv,
+  previewCatalogCsv,
+} from "../../services/catalog-import-bridge.js";
+import { getCatalogStats } from "../../services/generic-catalog-service.js";
 import {
   listFailedMessages,
   resolveFailedMessage,
@@ -113,34 +114,63 @@ export async function portalRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({ catalog: stats });
   });
 
+  app.post("/v1/portal/catalog/preview", async (request, reply) => {
+    const file = await request.file();
+    if (!file) {
+      return reply.status(400).send({
+        error: "missing_file",
+        message: "Envie o arquivo CSV no campo file",
+      });
+    }
+
+    const filename = file.filename.toLowerCase();
+    if (!filename.endsWith(".csv") && !filename.endsWith(".txt")) {
+      return reply.status(400).send({
+        error: "invalid_file",
+        message: "Use arquivo CSV (.csv)",
+      });
+    }
+
+    const buffer = await file.toBuffer();
+    const preview = await previewCatalogCsv(buffer);
+    return reply.send({ preview });
+  });
+
   app.post("/v1/portal/catalog/import", async (request, reply) => {
     const file = await request.file();
     if (!file) {
       return reply.status(400).send({
         error: "missing_file",
-        message: "Envie o arquivo .xlsx no campo file",
+        message: "Envie o arquivo CSV no campo file",
       });
     }
 
     const filename = file.filename.toLowerCase();
-    if (!filename.endsWith(".xlsx") && !filename.endsWith(".xls")) {
+    if (!filename.endsWith(".csv") && !filename.endsWith(".txt")) {
       return reply.status(400).send({
         error: "invalid_file",
-        message: "Use planilha Excel (.xlsx)",
+        message: "Use arquivo CSV (.csv)",
       });
     }
 
-    const buffer = await file.toBuffer();
-    const result = await importPropertiesFromUpload(
-      app.db,
-      buffer,
-      brand.brandWebsite,
-    );
+    const query = request.query as {
+      itemCodeKey?: string;
+      titleKey?: string;
+      activeKey?: string;
+    };
 
-    if (result.error === "no_valid_rows") {
+    const buffer = await file.toBuffer();
+    const result = await importCatalogCsv(app.db, buffer, {
+      filename: file.filename,
+      itemCodeKey: query.itemCodeKey?.trim(),
+      titleKey: query.titleKey?.trim() || null,
+      activeKey: query.activeKey?.trim() || null,
+    });
+
+    if (result.error === "no_rows") {
       return reply.status(400).send({
-        error: "no_valid_rows",
-        message: "Nenhuma linha válida (código AP#### / CA####) encontrada",
+        error: "no_rows",
+        message: "CSV vazio ou sem linhas de dados",
       });
     }
 
