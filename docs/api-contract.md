@@ -30,6 +30,26 @@ Sem autenticação. Para load balancer e EasyPanel healthcheck.
 
 Retorna identidade pública (sem secrets).
 
+## `POST /v1/debounce/wait-and-merge`
+
+Chamado pelo n8n **antes** do chat. Aguarda `DEBOUNCE_MS` e consolida mensagens seguidas do mesmo telefone.
+
+**Body:** igual ao `/v1/chat` + `debounceMs` opcional.
+
+**Resposta 200**
+
+```json
+{
+  "process": true,
+  "merged": { "messageId": "...", "phone": "...", "message": "linha1\nlinha2" },
+  "waitedMs": 3010,
+  "reason": "ready",
+  "messageCount": 2
+}
+```
+
+Se `process: false` (`reason: "superseded"`), o n8n **não** chama `/v1/chat` nesta execução.
+
 ## `POST /v1/chat`
 
 Chamado pelo n8n após debounce e idempotência.
