@@ -43,10 +43,8 @@ import {
   buildFallbackReply,
   generateAgentReply,
 } from "../../services/agent-service.js";
-import {
-  fetchPropertyKnowledgeFromRag,
-  shouldQueryPropertyRag,
-} from "../../services/property-rag-service.js";
+import { fetchPropertyKnowledge } from "../../services/property-knowledge-service.js";
+import { shouldQueryPropertyRag } from "../../services/property-rag-service.js";
 import {
   acceptsVisitAffirmative,
   botMessageInvitesVisit,
@@ -674,8 +672,9 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
       let llmErrorDetail: string | undefined;
       let ragMeta:
         | {
+            source?: string;
             sourceCount: number;
-            ragQuery: string;
+            ragQuery?: string;
             parsedListings?: number;
             matchedListings?: number;
             hadRagAnswer?: boolean;
@@ -706,7 +705,8 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
 
       if (config.rag.enabled && shouldQueryPropertyRag(config.rag, intent)) {
         try {
-          const ragResult = await fetchPropertyKnowledgeFromRag({
+          const knowledgeResult = await fetchPropertyKnowledge({
+            pool: app.db,
             rag: config.rag,
             brand: config.brand,
             userMessage: body.message,
@@ -714,14 +714,15 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
             propertyCode: extracted.propertyCode,
             history,
           });
-          if (ragResult) {
-            propertyKnowledge = ragResult.block;
+          if (knowledgeResult) {
+            propertyKnowledge = knowledgeResult.block;
             ragMeta = {
-              sourceCount: ragResult.sourceCount,
-              ragQuery: ragResult.ragQuery,
-              parsedListings: ragResult.parsedListings,
-              matchedListings: ragResult.matchedListings,
-              hadRagAnswer: ragResult.hadRagAnswer,
+              source: knowledgeResult.source,
+              sourceCount: knowledgeResult.sourceCount,
+              ragQuery: knowledgeResult.ragQuery,
+              parsedListings: knowledgeResult.parsedListings,
+              matchedListings: knowledgeResult.matchedListings,
+              hadRagAnswer: knowledgeResult.hadRagAnswer,
             };
           }
         } catch (ragErr) {
@@ -759,7 +760,9 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
             propertyKnowledge,
           });
           reason = propertyKnowledge
-            ? `llm_${config.llm.provider}_rag`
+            ? ragMeta && "source" in ragMeta && ragMeta.source === "catalog"
+              ? `llm_${config.llm.provider}_catalog`
+              : `llm_${config.llm.provider}_rag`
             : `llm_${config.llm.provider}`;
 
           await appendHistory(

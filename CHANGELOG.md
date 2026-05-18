@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-05-18
+
+### Added
+
+- Catálogo `app.properties` (migration `004_properties.sql`) com import automático da planilha no startup do container
+- Busca determinística por código `AP####` / `CA####` antes do RAG; fallback por perfil (bairro, quartos) no Postgres
+- Script `npm run properties:import` e `PROPERTIES_IMPORT_ON_START` / `PROPERTIES_XLSX_PATH` no deploy EasyPanel
+- `GET /health` expõe `catalog.properties_active` e aviso se o catálogo estiver vazio
+
 ## [0.10.0] - 2026-05-18
 
 ### Added

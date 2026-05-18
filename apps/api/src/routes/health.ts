@@ -8,6 +8,7 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
     let dbOk = false;
     let redisOk = false;
     let failedMessagesUnresolved = 0;
+    let propertiesActive = 0;
 
     const warnings: string[] = [];
 
@@ -34,6 +35,18 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
         if (failedMessagesUnresolved > 0) {
           warnings.push(
             `${failedMessagesUnresolved} mensagem(ns) em app.failed_messages sem resolver`,
+          );
+        }
+
+        const props = await getPool(config.databaseUrl).query<{
+          count: string;
+        }>(
+          `SELECT COUNT(*)::text AS count FROM app.properties WHERE active = TRUE`,
+        );
+        propertiesActive = Number(props.rows[0]?.count ?? 0);
+        if (propertiesActive === 0) {
+          warnings.push(
+            "Catálogo app.properties vazio — busca por código usará só RAG",
           );
         }
       }
@@ -73,6 +86,9 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
         maxWaitMs: Number(process.env.DEBOUNCE_MAX_WAIT_MS ?? 20_000),
         mode: "silence",
         endpoint: "/v1/debounce/wait-and-merge",
+      },
+      catalog: {
+        properties_active: propertiesActive,
       },
       ops: {
         failed_messages_unresolved: failedMessagesUnresolved,

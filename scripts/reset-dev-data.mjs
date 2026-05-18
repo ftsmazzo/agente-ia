@@ -49,6 +49,7 @@ try {
   await client.query(`
     TRUNCATE TABLE
       app.appointments,
+      app.properties,
       app.failed_messages,
       app.lead_actions,
       app.message_events,

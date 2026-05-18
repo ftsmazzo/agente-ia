@@ -29,6 +29,10 @@ if (process.env.RESET_DEV_DATA_ON_START === "true") {
   runNodeScript("resetting dev data (Postgres + Redis)", "/app/scripts/reset-dev-data.mjs");
 }
 
+if (process.env.PROPERTIES_IMPORT_ON_START !== "false") {
+  runNodeScript("importing property catalog", "/app/scripts/import-properties.mjs");
+}
+
 const cmd = process.argv.slice(2);
 if (cmd.length === 0) {
   console.error("[entrypoint] no command to run");
