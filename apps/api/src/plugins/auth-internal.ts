@@ -19,6 +19,14 @@ export async function registerInternalAuth(
         return;
       }
 
+      // Link .ics aberto no celular/navegador (alerta WhatsApp ao corretor)
+      if (
+        request.method === "GET" &&
+        /^\/v1\/scheduling\/appointments\/\d+\/ics$/.test(path)
+      ) {
+        return;
+      }
+
       const provided = request.headers["x-api-key"];
       if (provided !== apiKey) {
         return reply.status(401).send({

@@ -110,7 +110,7 @@ Variáveis no n8n:
 | `APPOINTMENT_NOTIFY_PHONE` | WhatsApp do corretor (só no **n8n**) |
 | `APPOINTMENT_OFFICE_ADDRESS` | Endereço completo (na **API**) — confirmação + alerta |
 | `APPOINTMENT_OFFICE_MAPS_URL` | Link Maps (opcional; senão gera do endereço) |
-| `PUBLIC_AGENT_API_URL` | URL pública HTTPS da API — link `.ics` no alerta |
+| `PUBLIC_AGENT_API_URL` | Domínio **público da API** (mesmo que abre `/health` no navegador) — link `.ics` |
 
 O texto do alerta ao corretor é montado pela API (`appointmentNotifyText`); o n8n só envia no WhatsApp.
 
