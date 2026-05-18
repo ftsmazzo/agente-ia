@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-05-18
+
+### Added
+
+- Portal web (`apps/portal`) com login, dashboard, agenda e personalização do agente
+- API `/v1/portal/*` com JWT, bootstrap do primeiro usuário e roles `installer` / `client`
+- `app.portal_users`, `app.agent_config` (tom, empresa, objetivos) injetado no prompt do chat
+- `app.scheduling_blackouts` e PATCH de agenda via portal
+- [docs/produto-portal.md](./docs/produto-portal.md) e `env-templates/07-portal.env`
+
 ## [0.11.0] - 2026-05-18
 
 ### Added

@@ -17,6 +17,12 @@ export type LlmSettings = {
   maxHistoryTurns: number;
 };
 
+export type PortalAuthConfig = {
+  jwtSecret: string;
+  corsOrigin: string | null;
+  bootstrapSecret: string | null;
+};
+
 export type AppConfig = {
   port: number;
   nodeEnv: string;
@@ -30,6 +36,7 @@ export type AppConfig = {
   features: FeatureFlags;
   llm: LlmSettings;
   rag: RagSettings;
+  portal: PortalAuthConfig;
 };
 
 function resolveLlmProvider(): LlmProviderId {
@@ -100,6 +107,13 @@ export function loadAppConfig(): AppConfig {
     if (!redisUrl) throw new Error("REDIS_URL is required in production");
   }
 
+  const portalJwtSecret =
+    process.env.PORTAL_JWT_SECRET?.trim() ||
+    (process.env.NODE_ENV === "production" ? "" : "dev-portal-jwt-secret");
+  if (process.env.NODE_ENV === "production" && !portalJwtSecret) {
+    throw new Error("PORTAL_JWT_SECRET is required in production");
+  }
+
   return {
     port,
     nodeEnv: process.env.NODE_ENV ?? "development",
@@ -116,5 +130,10 @@ export function loadAppConfig(): AppConfig {
     features,
     llm: loadLlmSettings(),
     rag,
+    portal: {
+      jwtSecret: portalJwtSecret || "dev-portal-jwt-secret",
+      corsOrigin: process.env.PORTAL_CORS_ORIGIN?.trim() || null,
+      bootstrapSecret: process.env.PORTAL_BOOTSTRAP_SECRET?.trim() || null,
+    },
   };
 }

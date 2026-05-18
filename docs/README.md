@@ -8,6 +8,7 @@
 | [variaveis-por-servico.md](./variaveis-por-servico.md) | Checklist, webhooks, troubleshooting |
 | [architecture.md](./architecture.md) | Visão da arquitetura, camadas e fluxo de mensagens |
 | [white-label.md](./white-label.md) | Estratégia white-label, BrandConfig, o que nunca commitar |
+| [produto-portal.md](./produto-portal.md) | Portal do cliente — login, agenda, agente, deploy |
 | [environment-variables.md](./environment-variables.md) | Atalho → variaveis-por-servico.md |
 | [local-development.md](./local-development.md) | Rodar Postgres, Redis e API na máquina local |
 | [deployment-easypanel.md](./deployment-easypanel.md) | Deploy Docker, EasyPanel, novo cliente |

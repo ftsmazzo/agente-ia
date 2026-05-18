@@ -19,6 +19,10 @@ export async function registerInternalAuth(
         return;
       }
 
+      if (path.startsWith("/v1/portal/")) {
+        return;
+      }
+
       // Link .ics aberto no celular/navegador (alerta WhatsApp ao corretor)
       if (
         request.method === "GET" &&

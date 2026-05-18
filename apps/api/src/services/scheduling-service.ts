@@ -179,6 +179,78 @@ function toAppointment(row: AppointmentRow): AppointmentRecord {
   };
 }
 
+export type SchedulingSettingsPatch = Partial<{
+  timezone: string;
+  weekdays: number[];
+  workStart: string;
+  workEnd: string;
+  slotMinutes: number;
+  durationMinutes: number;
+  minNoticeMinutes: number;
+  horizonDays: number;
+  location: string;
+  address: string | null;
+  mapsUrl: string | null;
+  active: boolean;
+}>;
+
+export async function updateSchedulingSettings(
+  pool: pg.Pool,
+  patch: SchedulingSettingsPatch,
+): Promise<SchedulingSettings> {
+  const current = await getSchedulingSettings(pool);
+
+  const next = {
+    timezone: patch.timezone ?? current.timezone,
+    weekdays: patch.weekdays ?? current.weekdays,
+    workStart: patch.workStart ?? current.workStart,
+    workEnd: patch.workEnd ?? current.workEnd,
+    slotMinutes: patch.slotMinutes ?? current.slotMinutes,
+    durationMinutes: patch.durationMinutes ?? current.durationMinutes,
+    minNoticeMinutes: patch.minNoticeMinutes ?? current.minNoticeMinutes,
+    horizonDays: patch.horizonDays ?? current.horizonDays,
+    location: patch.location ?? current.location,
+    address:
+      patch.address !== undefined ? patch.address : current.address,
+    mapsUrl: patch.mapsUrl !== undefined ? patch.mapsUrl : current.mapsUrl,
+    active: patch.active ?? current.active,
+  };
+
+  await pool.query(
+    `UPDATE app.appointment_settings
+     SET timezone = $1,
+         weekdays = $2,
+         work_start = $3::time,
+         work_end = $4::time,
+         slot_minutes = $5,
+         duration_minutes = $6,
+         min_notice_minutes = $7,
+         horizon_days = $8,
+         location = $9,
+         address = $10,
+         maps_url = $11,
+         active = $12,
+         updated_at = NOW()
+     WHERE id = 1`,
+    [
+      next.timezone,
+      next.weekdays,
+      next.workStart,
+      next.workEnd,
+      next.slotMinutes,
+      next.durationMinutes,
+      next.minNoticeMinutes,
+      next.horizonDays,
+      next.location,
+      next.address,
+      next.mapsUrl,
+      next.active,
+    ],
+  );
+
+  return getSchedulingSettings(pool);
+}
+
 export async function getSchedulingSettings(
   pool: pg.Pool,
 ): Promise<SchedulingSettings> {

@@ -43,6 +43,10 @@ import {
   buildFallbackReply,
   generateAgentReply,
 } from "../../services/agent-service.js";
+import {
+  formatAgentConfigPromptBlock,
+  getAgentConfig,
+} from "../../services/agent-config-service.js";
 import { fetchPropertyKnowledge } from "../../services/property-knowledge-service.js";
 import { shouldQueryPropertyRag } from "../../services/property-rag-service.js";
 import {
@@ -242,7 +246,14 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
       );
       cachedSystemPrompt = composeSystemPrompt(bundle);
     }
-    return cachedSystemPrompt;
+
+    try {
+      const agentConfig = await getAgentConfig(app.db);
+      const tenantBlock = formatAgentConfigPromptBlock(agentConfig);
+      return `${cachedSystemPrompt}\n\n${tenantBlock}`;
+    } catch {
+      return cachedSystemPrompt;
+    }
   }
 
   app.post("/v1/chat", async (request, reply) => {
