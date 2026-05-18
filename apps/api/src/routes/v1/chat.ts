@@ -126,6 +126,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
             ragQuery: string;
             parsedListings?: number;
             matchedListings?: number;
+            hadRagAnswer?: boolean;
           }
         | { error: string }
         | undefined;
