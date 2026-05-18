@@ -4,7 +4,8 @@
 
 | Documento | Conteúdo |
 |-----------|----------|
-| **[variaveis-por-servico.md](./variaveis-por-servico.md)** | **Mapa único: cada variável e em qual serviço colocar** |
+| **[env-templates/](../env-templates/)** | **Um `.env` por serviço — copiar/colar no EasyPanel** |
+| [variaveis-por-servico.md](./variaveis-por-servico.md) | Checklist, webhooks, troubleshooting |
 | [architecture.md](./architecture.md) | Visão da arquitetura, camadas e fluxo de mensagens |
 | [white-label.md](./white-label.md) | Estratégia white-label, BrandConfig, o que nunca commitar |
 | [environment-variables.md](./environment-variables.md) | Atalho → variaveis-por-servico.md |

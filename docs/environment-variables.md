@@ -1,13 +1,19 @@
 # Variáveis de ambiente
 
-**Referência oficial (por serviço):** [variaveis-por-servico.md](./variaveis-por-servico.md)
+## Copiar e colar no EasyPanel
 
-Arquivos modelo:
+**Pasta:** [`env-templates/`](../env-templates/) — um arquivo `.env` por serviço.
 
 | Serviço | Arquivo |
 |---------|---------|
-| API `agente-ia` | [`.env.example`](../.env.example) |
-| n8n | [`n8n/env.easypanel.example`](../n8n/env.easypanel.example) |
+| API | [`01-agente-ia.env`](../env-templates/01-agente-ia.env) |
+| n8n | [`02-n8n.env`](../env-templates/02-n8n.env) |
+| Evolution | [`03-evolution.env`](../env-templates/03-evolution.env) |
+| Chatwoot | [`04-chatwoot.env`](../env-templates/04-chatwoot.env) |
+| Postgres | [`05-postgres.env`](../env-templates/05-postgres.env) |
+| Redis | [`06-redis.env`](../env-templates/06-redis.env) |
+
+Checklist e troubleshooting: [variaveis-por-servico.md](./variaveis-por-servico.md)
 
 ## Regra de ouro
 

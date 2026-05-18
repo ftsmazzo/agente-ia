@@ -1,8 +1,23 @@
 # Variáveis por serviço — mapa único (Pazotti / agente-ia)
 
-**Use este arquivo como referência oficial.** Evite copiar o `.env.example` inteiro em cada serviço — muitas variáveis lá são só da API ou só do n8n.
+## Copiar e colar (EasyPanel)
 
-Última revisão: alinhado ao código em `main` (API v0.10.x).
+**Pasta:** [`env-templates/`](../env-templates/)
+
+| Arquivo | Cole no serviço EasyPanel |
+|---------|---------------------------|
+| [`01-agente-ia.env`](../env-templates/01-agente-ia.env) | API / agente-ia |
+| [`02-n8n.env`](../env-templates/02-n8n.env) | n8n |
+| [`03-evolution.env`](../env-templates/03-evolution.env) | Evolution |
+| [`04-chatwoot.env`](../env-templates/04-chatwoot.env) | Anotações Chatwoot |
+| [`05-postgres.env`](../env-templates/05-postgres.env) | Postgres |
+| [`06-redis.env`](../env-templates/06-redis.env) | Redis → montar `REDIS_URL` na API |
+
+Instruções: [`env-templates/LEIA-ME.txt`](../env-templates/LEIA-ME.txt)
+
+Cada arquivo é `CHAVE=valor` — confronte com o Environment do painel, apague o que estiver no serviço errado (lista no final de cada `.env`).
+
+Este `.md` é só diagrama, checklist e troubleshooting — **não cole tabelas daqui no EasyPanel.**
 
 ---
 
@@ -40,227 +55,16 @@ WhatsApp ←→ Evolution ←→ webhook → n8n (workflows) ←→ API agente-i
 
 ---
 
-## 1. API `agente-ia` (EasyPanel → Environment)
+## Webhooks (URLs, não são env da API)
 
-Todas são lidas pelo processo Node em `apps/api`. Arquivo modelo: [`.env.example`](../.env.example).
-
-### Obrigatórias
-
-| Variável | Exemplo | Descrição |
-|----------|---------|-----------|
-| `BRAND_NAME` | `Pazotti Imóveis` | Nome da marca |
-| `BRAND_SLUG` | `pazotti` | Identificador único |
-| `ASSISTANT_NAME` | `SofIA` | Nome na conversa |
-| `ASSISTANT_TITLE` | `consultora imobiliária` | Cargo |
-| `DATABASE_URL` | `postgresql://user:pass@postgres:5432/realty` | Postgres (hostname interno) |
-| `REDIS_URL` | `redis://redis:6379/0` | Redis |
-| `API_INTERNAL_KEY` | *(string longa aleatória)* | Auth `X-API-Key` (n8n usa o mesmo valor como `AGENT_API_KEY`) |
-
-### Marca e runtime
-
-| Variável | Padrão | Descrição |
-|----------|--------|-----------|
-| `BRAND_WEBSITE` | — | Site (opcional) |
-| `BRAND_PRIMARY_COLOR` | — | Hex (opcional) |
-| `BRAND_LOGO_URL` | — | URL logo (opcional) |
-| `DEFAULT_LOCALE` | `pt-BR` | Locale |
-| `TIMEZONE` | `America/Sao_Paulo` | Fuso (agenda e prompts) |
-| `NODE_ENV` | `development` | `production` em produção |
-| `PORT` | `3000` | Porta HTTP |
-| `LOG_LEVEL` | `info` | Log Pino |
-| `APP_VERSION` | `0.5.0` no health | Definido no Dockerfile (`0.10.0`) |
-
-### Features (true/false)
-
-| Variável | Padrão |
-|----------|--------|
-| `FEATURE_AUDIO_REPLY` | true |
-| `FEATURE_SCHEDULING` | true |
-| `FEATURE_PROPERTY_RAG` | true |
-| `FEATURE_HUMAN_HANDOFF` | true |
-
-### Prompts
-
-| Variável | Padrão |
-|----------|--------|
-| `SYSTEM_PROMPT_PATH` | `/app/config/prompts/system.pt-BR.md` |
-| `PERSONA_PROMPT_PATH` | `/app/config/prompts/persona.pt-BR.md` |
-
-### Banco e startup
-
-| Variável | Padrão | Descrição |
-|----------|--------|-----------|
-| `RUN_MIGRATIONS_ON_START` | `true` | Migrations ao subir |
-| `DB_WAIT_MAX_ATTEMPTS` | `30` | Espera Postgres |
-| `DB_WAIT_DELAY_MS` | `2000` | Intervalo entre tentativas |
-| `APP_ROOT` | `/app` | Raiz no container (scripts) |
-
-### Debounce (WhatsApp)
-
-| Variável | Padrão | Descrição |
-|----------|--------|-----------|
-| `DEBOUNCE_MS` | `5000` | Silêncio após última msg antes do LLM |
-| `DEBOUNCE_MAX_WAIT_MS` | `20000` | Teto de espera |
-
-### LLM
-
-| Variável | Descrição |
-|----------|-----------|
-| `LLM_PROVIDER` | `openai` ou `anthropic` |
-| `LLM_MODEL` | Override do modelo |
-| `LLM_MAX_TOKENS` | Ex.: `2500` (GPT-5*) |
-| `CHAT_MAX_HISTORY_TURNS` | Ex.: `8` |
-| `OPENAI_API_KEY` | Se provider OpenAI |
-| `OPENAI_MODEL` | Ex.: `gpt-4o-mini` |
-| `ANTHROPIC_API_KEY` | Se provider Anthropic |
-| `ANTHROPIC_MODEL` | Ex.: `claude-3-5-haiku-20241022` |
-| `GOOGLE_AI_API_KEY` | Reservado (não é fluxo principal hoje) |
-
-### RAG imóveis
-
-| Variável | Descrição |
-|----------|-----------|
-| `RAG_API_URL` | Base da API RAG |
-| `RAG_API_KEY` | Chave |
-| `RAG_KNOWLEDGE_BASE_ID` | ID da KB (alias aceito: `RAG_KB_ID`) |
-| `RAG_TOP_K` | Padrão `5` |
-| `RAG_TOP_K_CRITERIA` | Padrão `10` (busca por perfil) |
-| `RAG_TIMEOUT_MS` | Padrão `45000` |
-
-### Produção / dev
-
-| Variável | Produção |
-|----------|----------|
-| `RESET_DEV_DATA_ON_START` | **`false`** (apaga Postgres+Redis se `true`) |
-| `ALLOW_DEV_DATA_RESET` | Só se precisar reset com `NODE_ENV=production` |
-| `SENTRY_DSN` | Opcional |
-
-### ⚠️ NÃO colocar na API (estão no `.env.example` por histórico)
-
-Estas **não são lidas** pelo código da API hoje. Configurar no serviço correto:
-
-| Variável no `.env.example` | Onde configurar de verdade |
-|----------------------------|----------------------------|
-| `EVOLUTION_BASE_URL` | **n8n** (`EVOLUTION_BASE_URL`) + painel Evolution |
-| `EVOLUTION_INSTANCE` | Painel Evolution (nome da instância) |
-| `CHATWOOT_BASE_URL` | Painel Evolution → integração Chatwoot |
-| `CHATWOOT_ACCOUNT_ID` | Painel Evolution → Chatwoot |
-| `CHATWOOT_API_TOKEN` | Painel Evolution → Chatwoot |
-| `N8N_WEBHOOK_BASE_URL` | Documentação / lembrete (URL pública do n8n) |
-| `APPOINTMENT_NOTIFY_PHONE` | **n8n** apenas |
-| `PUBLIC_AGENT_API_URL` | **n8n** apenas (link `.ics` público) |
+| Workflow | URL |
+|----------|-----|
+| Evolution → n8n | `https://SEU-N8N/webhook/whatsapp-agent` |
+| Chatwoot → n8n | `https://SEU-N8N/webhook/chatwoot-sync` |
 
 ---
 
-## 2. n8n (EasyPanel → Environment)
-
-Arquivo modelo: [`n8n/env.easypanel.example`](../n8n/env.easypanel.example).
-
-### Obrigatórias para workflows 01 e 04
-
-| Variável | Exemplo | Workflow | Descrição |
-|----------|---------|----------|-----------|
-| `N8N_BLOCK_ENV_ACCESS_IN_NODE` | **`false`** | 01, 04 | Sem isso: `access to env vars denied` |
-| `AGENT_API_URL` | `http://agent-ia:3000` | 01, 04 | Hostname **interno** do serviço API |
-| `AGENT_API_KEY` | = `API_INTERNAL_KEY` | 01, 04 | Header `X-API-Key` |
-| `EVOLUTION_BASE_URL` | `http://evolution:8080` | 01 | Fallback se webhook não traz `server_url` |
-| `EVOLUTION_API_KEY` | *(apikey Evolution)* | 01 | Enviar texto WhatsApp |
-| `DEBOUNCE_MS` | `5000` | 01 | Igual à API |
-
-### Agenda (workflow 01)
-
-| Variável | Obrigatório | Descrição |
-|----------|-------------|-----------|
-| `APPOINTMENT_NOTIFY_PHONE` | Para alerta | WhatsApp corretor: só dígitos, com DDI `55...` |
-| `PUBLIC_AGENT_API_URL` | Opcional | URL **pública** HTTPS da API (link `.ics`). Se vazio, usa `AGENT_API_URL` (pode não abrir fora da rede) |
-
-### Handoff Chatwoot (workflow 04)
-
-| Variável | Obrigatório | Descrição |
-|----------|-------------|-----------|
-| `CHATWOOT_INBOX_ID` | Opcional | Filtra só o inbox da SofIA (ex.: `1`) |
-
-### Infra n8n (EasyPanel — não estão no repo)
-
-Configure no painel do n8n conforme seu domínio:
-
-| Variável típica | Uso |
-|-----------------|-----|
-| `WEBHOOK_URL` | URL pública base (`https://n8n.seudominio.com`) |
-| `N8N_HOST` | Hostname público |
-| `N8N_PROTOCOL` | `https` |
-
-Webhooks usados pelos JSON importados:
-
-| Workflow | Path padrão | URL completa |
-|----------|-------------|--------------|
-| `01-whatsapp-agent.json` | `whatsapp-agent` | `https://SEU-N8N/webhook/whatsapp-agent` |
-| `04-sync-chatwoot.json` | `chatwoot-sync` | `https://SEU-N8N/webhook/chatwoot-sync` |
-
----
-
-## 3. Evolution API
-
-Configuração principal no **painel da instância** (não no repositório agente-ia).
-
-| Onde | O quê |
-|------|--------|
-| Instância | Nome (ex.: usado no webhook `instance`) |
-| Webhook | POST → `https://SEU-N8N/webhook/whatsapp-agent` |
-| API Key | Mesma usada no n8n como `EVOLUTION_API_KEY` |
-| Chatwoot (integração) | URL, Account ID, Token do inbox |
-
-### Variável no container Evolution (self-hosted)
-
-| Variável | Valor | Quando |
-|----------|-------|--------|
-| `CHATWOOT_ENABLED` | `true` | Se aparecer "Chatwoot is disabled" |
-
-Campos Chatwoot (URL, token, account) são salvos **na Evolution**, não duplicar na API.
-
----
-
-## 4. Chatwoot
-
-| Onde | O quê |
-|------|--------|
-| Settings → Inboxes | **Account ID**, token API, nome do inbox |
-| Settings → Integrations → Webhooks | URL `https://SEU-N8N/webhook/chatwoot-sync` |
-| Eventos webhook | `message_created`, `conversation_status_changed`, `assignee_changed`, … |
-
-Anote o **Inbox ID** numérico → `CHATWOOT_INBOX_ID` no n8n (opcional).
-
----
-
-## 5. Postgres (serviço Docker)
-
-| Variável (container Postgres) | Valor dev local |
-|-------------------------------|-----------------|
-| `POSTGRES_USER` | `realty` |
-| `POSTGRES_PASSWORD` | `realty` |
-| `POSTGRES_DB` | `realty` |
-
-Na API use: `DATABASE_URL=postgresql://realty:realty@postgres:5432/realty` (ajuste user/senha/host).
-
----
-
-## 6. Redis (serviço Docker)
-
-Sem env especial no app — só `REDIS_URL` na API.
-
-Ex.: `redis://redis:6379/0` (rede interna).
-
----
-
-## 7. RAG (serviço externo)
-
-Nenhuma variável no Evolution/Chatwoot. Só na **API**:
-
-`RAG_API_URL`, `RAG_API_KEY`, `RAG_KNOWLEDGE_BASE_ID`, `FEATURE_PROPERTY_RAG=true`.
-
----
-
-## Checklist de reimplantação (copiar e marcar)
+## Checklist de reimplantação
 
 ### API `agente-ia`
 
@@ -312,13 +116,8 @@ Nenhuma variável no Evolution/Chatwoot. Só na **API**:
 
 ---
 
-## Arquivos relacionados
+## Docs relacionados
 
-| Arquivo | Conteúdo |
-|---------|----------|
-| [`.env.example`](../.env.example) | Modelo **só API** (limpo) |
-| [`n8n/env.easypanel.example`](../n8n/env.easypanel.example) | Modelo **só n8n** |
-| [`environment-variables.md`](./environment-variables.md) | Índice curto → este documento |
-| [`n8n-integracao.md`](./n8n-integracao.md) | Passo a passo workflow 01 |
-| [`handoff-chatwoot.md`](./handoff-chatwoot.md) | Workflow 04 |
-| [`operations-production.md`](./operations-production.md) | Checklist produção |
+- [`n8n-integracao.md`](./n8n-integracao.md) — workflow 01
+- [`handoff-chatwoot.md`](./handoff-chatwoot.md) — workflow 04
+- [`operations-production.md`](./operations-production.md) — produção

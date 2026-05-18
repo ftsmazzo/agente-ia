@@ -1,0 +1,32 @@
+VARIÁVEIS POR SERVIÇO — COPIAR E COLAR
+=====================================
+
+Abra UM arquivo por vez no EasyPanel (Environment do serviço).
+
+  01-agente-ia.env   → serviço API / agente-ia
+  02-n8n.env         → serviço n8n
+  03-evolution.env   → serviço Evolution (+ painel da instância)
+  04-chatwoot.env    → anotações (Chatwoot tem .env próprio)
+  05-postgres.env    → serviço Postgres
+  06-redis.env       → lembrete REDIS_URL na API
+
+VALORES QUE DEVEM SER IGUAIS
+----------------------------
+  API: API_INTERNAL_KEY  =  n8n: AGENT_API_KEY
+  API: DEBOUNCE_MS       =  n8n: DEBOUNCE_MS
+
+SANITIZAR (apagar do serviço errado)
+------------------------------------
+  APPOINTMENT_NOTIFY_PHONE     → só n8n
+  OPENAI_API_KEY, RAG_*        → só API
+  EVOLUTION_API_KEY            → só n8n (+ Evolution painel)
+  DATABASE_URL, REDIS_URL      → só API
+
+Como confrontar
+---------------
+1. Abra o Environment do serviço no EasyPanel.
+2. Abra o .env correspondente desta pasta.
+3. Para cada linha do EasyPanel: existe no arquivo certo? Se não, apague ou mova.
+4. Para cada linha obrigatória do arquivo: está preenchida no EasyPanel?
+
+Documentação extra: docs/variaveis-por-servico.md
