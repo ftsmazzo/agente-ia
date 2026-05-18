@@ -41,6 +41,40 @@ export type AgentConfig = {
   customRules: string;
 };
 
+export type CatalogStats = {
+  total: number;
+  active: number;
+  lastImportedAt: string | null;
+};
+
+export type Appointment = {
+  id: number;
+  phone: string;
+  customerName: string | null;
+  propertyCode: string | null;
+  status: string;
+  startsAt: string;
+  endsAt: string;
+  location: string;
+};
+
+export type Blackout = {
+  id: number;
+  startsAt: string;
+  endsAt: string;
+  label: string | null;
+};
+
+export type FailedMessage = {
+  id: number;
+  externalId: string | null;
+  phone: string | null;
+  errorMessage: string;
+  retryCount: number;
+  createdAt: string;
+  payloadPreview: string;
+};
+
 function token(): string | null {
   return localStorage.getItem("portal_token");
 }
@@ -59,7 +93,9 @@ async function request<T>(
   options: RequestInit = {},
 ): Promise<T> {
   const headers = new Headers(options.headers);
-  headers.set("Content-Type", "application/json");
+  if (!(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
   const t = token();
   if (t) headers.set("Authorization", `Bearer ${t}`);
 
@@ -124,5 +160,55 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     });
+  },
+  getCatalog() {
+    return request<{ catalog: CatalogStats }>("/v1/portal/catalog");
+  },
+  importCatalog(file: File) {
+    const form = new FormData();
+    form.append("file", file);
+    return request<{
+      ok: boolean;
+      upserted: number;
+      activeCount: number;
+      total: number;
+    }>("/v1/portal/catalog/import", { method: "POST", body: form });
+  },
+  getAppointments(params?: { status?: string; limit?: number }) {
+    const q = new URLSearchParams();
+    if (params?.status) q.set("status", params.status);
+    if (params?.limit) q.set("limit", String(params.limit));
+    const qs = q.toString();
+    return request<{ appointments: Appointment[] }>(
+      `/v1/portal/scheduling/appointments${qs ? `?${qs}` : ""}`,
+    );
+  },
+  getBlackouts() {
+    return request<{ blackouts: Blackout[] }>(
+      "/v1/portal/scheduling/blackouts",
+    );
+  },
+  addBlackout(body: { startsAt: string; endsAt: string; label?: string }) {
+    return request<{ ok: boolean; id: number }>(
+      "/v1/portal/scheduling/blackouts",
+      { method: "POST", body: JSON.stringify(body) },
+    );
+  },
+  deleteBlackout(id: number) {
+    return request<{ ok: boolean }>(
+      `/v1/portal/scheduling/blackouts/${id}`,
+      { method: "DELETE" },
+    );
+  },
+  getFailedMessages() {
+    return request<{ items: FailedMessage[] }>(
+      "/v1/portal/ops/failed-messages",
+    );
+  },
+  resolveFailedMessage(id: number) {
+    return request<{ ok: boolean }>(
+      `/v1/portal/ops/failed-messages/${id}/resolve`,
+      { method: "PATCH" },
+    );
   },
 };

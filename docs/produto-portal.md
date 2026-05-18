@@ -53,8 +53,18 @@ Portal — build arg: `VITE_API_URL=https://URL-DA-API` (sem barra no final).
 
 Ver arquitetura em [arquitetura-persona-rag.md](./arquitetura-persona-rag.md). O portal edita `app.agent_config` (empresa, tom, objetivos, regras).
 
+## Telas do portal
+
+| Rota | Função |
+|------|--------|
+| `/` | Resumo |
+| `/agenda` | Horários, visitas, bloqueios |
+| `/catalogo` | Upload planilha .xlsx |
+| `/agente` | Tom, empresa, objetivos |
+| `/monitor` | Falhas de processamento |
+| `/equipe` | Criar login cliente (implantador) |
+
 ## Roadmap UI
 
-- v0.12 ✅ Login, dashboard, agenda, agente, seed por env
-- v0.13 Catálogo (upload planilha) na UI
-- v0.14 Monitor de conversas
+- v0.13 ✅ Catálogo + monitor + agenda completa
+- v0.14 Histórico de conversas no painel

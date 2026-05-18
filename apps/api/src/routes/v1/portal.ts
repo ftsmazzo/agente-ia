@@ -17,7 +17,14 @@ import {
   updateSchedulingSettings,
   type AppointmentStatus,
 } from "../../services/scheduling-service.js";
-import { countActiveProperties } from "../../services/property-catalog-service.js";
+import {
+  getCatalogStats,
+  importPropertiesFromUpload,
+} from "../../services/property-import-service.js";
+import {
+  listFailedMessages,
+  resolveFailedMessage,
+} from "../../services/portal-ops-service.js";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -101,13 +108,76 @@ export async function portalRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({ user: request.portalUser });
   });
 
+  app.get("/v1/portal/catalog", async (_request, reply) => {
+    const stats = await getCatalogStats(app.db);
+    return reply.send({ catalog: stats });
+  });
+
+  app.post("/v1/portal/catalog/import", async (request, reply) => {
+    const file = await request.file();
+    if (!file) {
+      return reply.status(400).send({
+        error: "missing_file",
+        message: "Envie o arquivo .xlsx no campo file",
+      });
+    }
+
+    const filename = file.filename.toLowerCase();
+    if (!filename.endsWith(".xlsx") && !filename.endsWith(".xls")) {
+      return reply.status(400).send({
+        error: "invalid_file",
+        message: "Use planilha Excel (.xlsx)",
+      });
+    }
+
+    const buffer = await file.toBuffer();
+    const result = await importPropertiesFromUpload(
+      app.db,
+      buffer,
+      brand.brandWebsite,
+    );
+
+    if (result.error === "no_valid_rows") {
+      return reply.status(400).send({
+        error: "no_valid_rows",
+        message: "Nenhuma linha válida (código AP#### / CA####) encontrada",
+      });
+    }
+
+    return reply.send({ ok: true, ...result });
+  });
+
+  app.get("/v1/portal/ops/failed-messages", async (request, reply) => {
+    const query = request.query as { limit?: string; all?: string };
+    const items = await listFailedMessages(app.db, {
+      limit: query.limit ? Number(query.limit) : 50,
+      unresolvedOnly: query.all !== "true",
+    });
+    return reply.send({ items });
+  });
+
+  app.patch(
+    "/v1/portal/ops/failed-messages/:id/resolve",
+    { preHandler: requirePortalRole(["installer"]) },
+    async (request, reply) => {
+      const id = Number((request.params as { id: string }).id);
+      if (!Number.isInteger(id) || id <= 0) {
+        return reply.status(400).send({ error: "invalid_id" });
+      }
+      const ok = await resolveFailedMessage(app.db, id);
+      if (!ok) return reply.status(404).send({ error: "not_found" });
+      return reply.send({ ok: true });
+    },
+  );
+
   app.get("/v1/portal/dashboard", async (_request, reply) => {
     let propertiesActive = 0;
     let appointmentsUpcoming = 0;
     let failedMessages = 0;
 
     try {
-      propertiesActive = await countActiveProperties(app.db);
+      const catalog = await getCatalogStats(app.db);
+      propertiesActive = catalog.active;
       const appts = await listAppointments(app.db, {
         status: "scheduled" as AppointmentStatus,
         from: new Date().toISOString(),

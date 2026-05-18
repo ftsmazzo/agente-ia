@@ -6,6 +6,8 @@ import { AgentPage } from "./pages/AgentPage.js";
 import { AgendaPage } from "./pages/AgendaPage.js";
 import { DashboardPage } from "./pages/DashboardPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
+import { CatalogPage } from "./pages/CatalogPage.js";
+import { MonitorPage } from "./pages/MonitorPage.js";
 import { TeamPage } from "./pages/TeamPage.js";
 
 function PrivateRoute({ children }: { children: ReactNode }) {
@@ -27,7 +29,9 @@ export function App() {
       >
         <Route index element={<DashboardPage />} />
         <Route path="agenda" element={<AgendaPage />} />
+        <Route path="catalogo" element={<CatalogPage />} />
         <Route path="agente" element={<AgentPage />} />
+        <Route path="monitor" element={<MonitorPage />} />
         <Route path="equipe" element={<TeamPage />} />
       </Route>
     </Routes>

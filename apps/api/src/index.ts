@@ -1,4 +1,5 @@
 import cors from "@fastify/cors";
+import multipart from "@fastify/multipart";
 import Fastify from "fastify";
 import { loadAppConfig } from "./config/app-config.js";
 import { registerInternalAuth } from "./plugins/auth-internal.js";
@@ -37,6 +38,10 @@ async function main(): Promise<void> {
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
+  });
+
+  await app.register(multipart, {
+    limits: { fileSize: 12 * 1024 * 1024, files: 1 },
   });
 
   await registerPortalAuth(app, config.portal.jwtSecret);

@@ -347,8 +347,26 @@ export async function listAvailableSlots(
   );
   const booked = new Set(rows.map((row) => row.starts_at.toISOString()));
 
+  const { rows: blackoutRows } = await pool.query<{
+    starts_at: Date;
+    ends_at: Date;
+  }>(
+    `SELECT starts_at, ends_at FROM app.scheduling_blackouts
+     WHERE ends_at > $1 AND starts_at < $2`,
+    [first, last],
+  );
+
+  const slotBlockedByBlackout = (start: Date, end: Date): boolean =>
+    blackoutRows.some(
+      (b) => start < b.ends_at && end > b.starts_at,
+    );
+
   return candidates
-    .filter((slot) => !booked.has(slot.start.toISOString()))
+    .filter(
+      (slot) =>
+        !booked.has(slot.start.toISOString()) &&
+        !slotBlockedByBlackout(slot.start, slot.end),
+    )
     .slice(0, limit)
     .map((slot, index) => ({
       startsAt: slot.start.toISOString(),

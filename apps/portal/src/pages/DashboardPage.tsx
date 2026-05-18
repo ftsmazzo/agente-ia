@@ -47,8 +47,18 @@ export function DashboardPage() {
             Ajuste horários em <a href="/agenda">Agenda</a>
           </li>
           <li>
+            Atualize a planilha em <a href="/catalogo">Catálogo</a>
+          </li>
+          <li>
             Personalize tom e empresa em <a href="/agente">Agente</a>
           </li>
+          {data.ops.failedMessagesUnresolved > 0 && (
+            <li>
+              <a href="/monitor">
+                {data.ops.failedMessagesUnresolved} falha(s) pendente(s)
+              </a>
+            </li>
+          )}
         </ul>
       </div>
     </>
