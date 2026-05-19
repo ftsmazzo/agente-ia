@@ -125,7 +125,7 @@ export function AgentPage() {
                     {install.detail}
                   </p>
                 )}
-              </motion.div>
+              </div>
             );
           })}
         </div>
