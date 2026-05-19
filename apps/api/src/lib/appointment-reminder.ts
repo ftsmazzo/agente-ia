@@ -1,5 +1,6 @@
 export function buildClientVisitReminderText(params: {
   brandName: string;
+  assistantName?: string;
   firstName: string | null;
   whenLabel: string;
   location: string;
@@ -7,20 +8,26 @@ export function buildClientVisitReminderText(params: {
   soon?: boolean;
 }): string {
   const who = params.firstName?.trim();
-  const greeting = who ? `Olá, ${who}!` : "Olá!";
+  const greeting = who ? `Olá, ${who}! Tudo bem?` : "Olá! Tudo bem?";
+  const whoFrom = params.assistantName?.trim() || params.brandName;
   const property = params.propertyCode
-    ? `\nImóvel: *${params.propertyCode}*`
+    ? `\n📍 Imóvel de interesse: *${params.propertyCode}*`
     : "";
-  const timing = params.soon
-    ? "Sua visita está chegando"
-    : "Lembrete da sua visita";
+
+  const intro = params.soon
+    ? "Sua visita na nossa imobiliária está chegando"
+    : "Passando para lembrar da sua visita na nossa imobiliária";
 
   return [
-    `${greeting}`,
+    greeting,
     "",
-    `📅 *${params.brandName}* — ${timing} em *${params.whenLabel}*.`,
+    `${intro} — *${params.whenLabel}*.`,
     `Local: ${params.location}${property}`,
     "",
-    "Responda *SIM* para confirmar ou *NÃO* para cancelar e liberar o horário.",
+    "Está tudo certo para você?",
+    "• Responda *SIM* para confirmar",
+    "• Responda *NÃO* se precisar desmarcar (liberamos o horário na hora)",
+    "",
+    `Qualquer dúvida, pode falar comigo por aqui. — ${whoFrom}`,
   ].join("\n");
 }

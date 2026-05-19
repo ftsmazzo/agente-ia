@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.1] - 2026-05-19
+
+### Fixed
+
+- Lembretes de visita **somente ao cliente** (workflow 06 não usa mais `APPOINTMENT_NOTIFY_PHONE` como fallback)
+- Mensagem acolhedora com SIM/NÃO, sem menção ao portal
+
 ## [0.22.0] - 2026-05-19
 
 ### Changed

@@ -116,12 +116,14 @@ O workflow `06-ops-notifications.json` roda a cada **30 minutos**, chama `POST /
 
 | Tipo | Destino | Quando |
 |------|---------|--------|
-| Lembrete ~24h | **Cliente** (telefone da visita) | Visita daqui a **20–28 h**, `confirmation_status = pending` |
-| Lembrete “em breve” | **Cliente** | Visita daqui a **1–20 h** (agendou com pouca antecedência), só 1x |
-| Erro novo | Operacional (`OPS_NOTIFY_PHONE`) | `app.failed_messages` ainda não alertado |
-| Resumo | Operacional | 10+ falhas não resolvidas (no máximo 1x a cada 12h) |
+| Lembrete ~24h | **Somente o cliente** (telefone da visita) | Visita daqui a **20–28 h**, `confirmation_status = pending` |
+| Lembrete “em breve” | **Somente o cliente** | Visita daqui a **1–20 h**, só 1x |
+| Erro novo | Operacional (`OPS_NOTIFY_PHONE`) | `app.failed_messages` — **não** é lembrete de visita |
+| Resumo | Operacional | 10+ falhas não resolvidas |
 
-O cliente recebe: *“Responda SIM para confirmar ou NÃO para cancelar e liberar o horário.”* A SofIA trata a resposta no `/v1/chat` (confirma ou cancela a visita automaticamente).
+O **corretor/usuário do portal não recebe** lembrete de visita (não confirma agenda pelo portal). O cliente recebe mensagem acolhedora com *SIM* / *NÃO*; a SofIA confirma ou cancela no `/v1/chat`.
+
+**Importante:** reimporte `06-ops-notifications.json` após atualizar — o workflow antigo mandava tudo para `OPS_NOTIFY_PHONE` / `APPOINTMENT_NOTIFY_PHONE`.
 
 Variáveis no n8n:
 

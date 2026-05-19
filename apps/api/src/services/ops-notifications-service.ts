@@ -14,7 +14,9 @@ export type OpsNotificationMessage = {
   id: string;
   kind: OpsNotificationKind;
   text: string;
-  /** Dígitos do WhatsApp (Evolution). Lembretes de visita vão ao cliente. */
+  /** `client` = lembrete de visita; `ops` = alertas internos (erro do sistema). */
+  audience: "client" | "ops";
+  /** Dígitos do WhatsApp do cliente (obrigatório quando audience = client). */
   recipientPhone?: string;
   referenceId?: number;
 };
@@ -93,6 +95,7 @@ export async function runOpsNotificationTick(
     const clientDigits = row.phone.replace(/\D/g, "");
     const text = buildClientVisitReminderText({
       brandName: brand.brandName,
+      assistantName: brand.assistantName,
       firstName,
       whenLabel: when,
       location: row.location,
@@ -104,6 +107,7 @@ export async function runOpsNotificationTick(
       id: `appointment_reminder:${row.id}`,
       kind: soon ? "appointment_reminder_soon" : "appointment_reminder_24h",
       text,
+      audience: "client",
       recipientPhone: clientDigits,
       referenceId: row.id,
     });
@@ -142,6 +146,7 @@ export async function runOpsNotificationTick(
       id: `failed_message:${row.id}`,
       kind: "failed_message",
       text,
+      audience: "ops",
       referenceId: row.id,
     });
   }
@@ -161,6 +166,7 @@ export async function runOpsNotificationTick(
       messages.push({
         id: `system_health:failed_threshold:${unresolvedFailed}`,
         kind: "system_health",
+        audience: "ops",
         text: [
           `⚠️ *Alerta ${brand.brandName}*`,
           "",
