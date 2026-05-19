@@ -17,7 +17,7 @@ function formatPhone(phone: string): string {
 }
 
 function modeLabel(mode: string): string {
-  if (mode === "human") return "Corretor";
+  if (mode === "human") return "Usuário";
   if (mode === "paused") return "Pausado";
   return "Bot";
 }
@@ -131,7 +131,7 @@ export function ConversationsPage() {
 
   async function resetConversation() {
     if (!thread || !window.confirm(
-      "Zerar memória do agente e qualificação deste contato? Visitas agendadas serão canceladas.",
+      "Zerar memória do agente e qualificação deste contato? Agendamentos futuros serão cancelados.",
     )) {
       return;
     }
@@ -261,7 +261,7 @@ export function ConversationsPage() {
                 disabled={modeBusy}
                 onClick={() => changeMode("human")}
               >
-                Corretor
+                Usuário
               </button>
               <button
                 type="button"

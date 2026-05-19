@@ -69,7 +69,7 @@ Ver arquitetura em [arquitetura-persona-rag.md](./arquitetura-persona-rag.md). O
 | `/catalogo` | CSV: analisar colunas, importar (substituir ou mesclar), exportar |
 | `/agente` | Tom, empresa, objetivos |
 | `/contatos` | CRM: contatos e qualificação |
-| `/conversas` | Histórico + modo bot/corretor |
+| `/conversas` | Histórico + modo bot/usuário |
 | `/monitor` | Falhas de processamento |
 | `/equipe` | Criar login cliente (implantador) |
 

@@ -20,7 +20,7 @@ function formatBrl(value: number): string {
 
 function statusLabel(status: string | null): string {
   if (!status) return "—";
-  if (status === "visit_scheduled") return "Visita agendada";
+  if (status === "visit_scheduled") return "Agendamento confirmado";
   if (status === "qualification") return "Em qualificação";
   return status;
 }
@@ -132,7 +132,7 @@ export function ContactsPage() {
                         `Até ${formatBrl(item.qualification.budgetMaxBrl)}`}
                       {item.qualification.payment &&
                         ` · ${item.qualification.payment}`}
-                      {item.qualification.visitRequested && " · quer visita"}
+                      {item.qualification.visitRequested && " · quer agendar"}
                     </p>
                   )}
                   <p className="item-meta" style={{ fontSize: "0.8rem" }}>

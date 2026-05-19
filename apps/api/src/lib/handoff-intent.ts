@@ -34,7 +34,7 @@ export function buildHandoffReply(
   contactName: string | null,
 ): string {
   const who = contactName ? `${contactName}, ` : "";
-  return `${who}com certeza! Vou acionar um corretor da ${brandName} para continuar com você por aqui. Em instantes alguém da equipe assume — obrigada por falar com a ${assistantName}.`;
+  return `${who}com certeza! Vou acionar alguém da equipe da ${brandName} para continuar com você por aqui. Em instantes um atendente assume — obrigada por falar com a ${assistantName}.`;
 }
 
 export function buildReturnToBotReply(

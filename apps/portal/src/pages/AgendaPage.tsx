@@ -120,7 +120,7 @@ export function AgendaPage() {
 
         <div className="row">
           <div>
-            <label>Duração da visita (min)</label>
+            <label>Duração do agendamento (min)</label>
             <input
               type="number"
               min={15}
@@ -192,7 +192,7 @@ export function AgendaPage() {
       </form>
 
       <div className="card">
-        <h2>Próximas visitas</h2>
+        <h2>Próximos agendamentos</h2>
         {appointments.length === 0 ? (
           <p style={{ margin: 0, color: "var(--muted)" }}>
             Nenhum agendamento recente.
@@ -207,7 +207,7 @@ export function AgendaPage() {
                     {a.customerName ?? a.phone}
                   </strong>
                   <p className="item-meta">
-                    {a.propertyCode ? `Imóvel ${a.propertyCode} · ` : ""}
+                    {a.propertyCode ? `Código ${a.propertyCode} · ` : ""}
                     {a.status} · {a.location}
                   </p>
                 </div>

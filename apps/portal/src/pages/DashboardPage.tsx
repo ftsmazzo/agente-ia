@@ -36,7 +36,7 @@ export function DashboardPage() {
           </div>
           <div className="stat">
             <strong>{data.scheduling.appointmentsUpcoming}</strong>
-            <span>Visitas agendadas</span>
+            <span>Agendamentos</span>
           </div>
           <div className="stat">
             <strong>{data.ops.failedMessagesUnresolved}</strong>
@@ -52,10 +52,10 @@ export function DashboardPage() {
             <Link to="/contatos">Contatos</Link> — CRM automático do WhatsApp
           </li>
           <li>
-            <Link to="/conversas">Conversas</Link> — histórico e modo bot/corretor
+            <Link to="/conversas">Conversas</Link> — histórico e modo bot/usuário
           </li>
           <li>
-            <Link to="/agenda">Agenda</Link> — horários e visitas
+            <Link to="/agenda">Agenda</Link> — horários e agendamentos
           </li>
           <li>
             <Link to="/catalogo">Catálogo</Link> — importar CSV

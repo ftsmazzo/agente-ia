@@ -122,7 +122,7 @@ export function AgentPage() {
                 })
               }
             />
-            Agendar visita ou reunião
+            Oferecer agendamento
           </label>
         </div>
 
@@ -133,7 +133,7 @@ export function AgentPage() {
           onChange={(e) =>
             setConfig({ ...config, customRules: e.target.value })
           }
-          placeholder="Ex.: não falar de financiamento antes da visita; sempre citar a unidade do centro…"
+          placeholder="Ex.: não falar de preço antes de qualificar; sempre citar o código do item…"
         />
 
         <button type="submit" className="btn btn-primary" disabled={saving}>
