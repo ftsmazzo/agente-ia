@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { LoadingState } from "../components/LoadingState.js";
+import { PageHeader } from "../components/PageHeader.js";
 import { api, type InstallGuide } from "../api.js";
 
 function badgeClass(status: "ok" | "warn" | "error"): string {
@@ -47,17 +49,33 @@ export function InstallPage() {
   }
 
   if (!guide && !error) {
-    return <p>Carregando guia de instalação…</p>;
+    return <LoadingState label="Carregando guia de instalação…" />;
   }
 
   return (
     <>
-      <h1 style={{ marginTop: 0 }}>Instalação</h1>
-      <p style={{ color: "var(--muted)" }}>
-        Pacote <strong>{guide?.product.name ?? "agentes-ia"}</strong> — checklist
-        para nova empresa. O portal <em>não</em> cria serviços no EasyPanel
-        automaticamente; use isto enquanto configura cada serviço.
-      </p>
+      <PageHeader
+        title="Instalação"
+        description={
+          <>
+            Pacote <strong>{guide?.product.name ?? "agentes-ia"}</strong> —
+            checklist para nova empresa. O portal não cria serviços no EasyPanel
+            automaticamente; use isto enquanto configura cada serviço.
+          </>
+        }
+        actions={
+          guide ? (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={refresh}
+              disabled={loading}
+            >
+              {loading ? "Atualizando…" : "Atualizar diagnóstico"}
+            </button>
+          ) : undefined
+        }
+      />
 
       {error && <p className="error">{error}</p>}
 
@@ -77,14 +95,6 @@ export function InstallPage() {
               Versão API {guide.version} · Repositório:{" "}
               <code>{guide.docs.fullGuide}</code>
             </p>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={refresh}
-              disabled={loading}
-            >
-              {loading ? "Atualizando…" : "Atualizar diagnóstico"}
-            </button>
           </div>
 
           <div className="card">
