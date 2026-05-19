@@ -448,9 +448,14 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
+      const activeAppointmentEarly = config.features.scheduling
+        ? await getNextActiveAppointment(app.db, phone)
+        : null;
+
       if (
         config.features.scheduling &&
-        schedulingState?.status === "awaiting_qualification_choice"
+        schedulingState?.status === "awaiting_qualification_choice" &&
+        !wantsReschedule(body.message)
       ) {
         const visitLabel = visitLabelFromState(
           schedulingState,
@@ -527,7 +532,8 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
       if (
         config.features.scheduling &&
         schedulingState?.status === "awaiting_visit_confirmation" &&
-        schedulingState.appointmentId
+        schedulingState.appointmentId &&
+        !wantsReschedule(body.message)
       ) {
         const choice = resolveVisitConfirmationReply(body.message);
         if (choice) {
@@ -637,9 +643,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         (acceptsVisitAffirmative(body.message) ||
           (visitPrompted && acceptsVisitAfterInvite(body.message))) &&
         (visitPrompted || Boolean(qualificationPatch?.visit_requested));
-      const activeAppointment = config.features.scheduling
-        ? await getNextActiveAppointment(app.db, phone)
-        : null;
+      const activeAppointment = activeAppointmentEarly;
       const rescheduleIntent = wantsReschedule(body.message);
       const isAwaitingReschedule =
         schedulingState?.status === "awaiting_reschedule";
@@ -728,11 +732,10 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
             });
             await mergeConversationMetadata(app.db, phone, {
               scheduling: {
-                status: "awaiting_qualification_choice",
+                status: "booked",
                 appointmentId: updated.appointment.id,
                 startsAt: updated.appointment.startsAt,
                 propertyCode: existing.propertyCode,
-                qualificationRetries: 0,
                 updatedAt: new Date().toISOString(),
               },
             });

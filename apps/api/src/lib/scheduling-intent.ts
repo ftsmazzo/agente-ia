@@ -38,14 +38,21 @@ export function wantsReschedule(message: string): boolean {
     return false;
   }
   if (
-    /\b(minha|a)\s+agenda\b/.test(t) &&
+    /\bagenda\b/.test(t) &&
     /\b(atrasar|adiar|remarcar|reagendar|mudar|alterar|trocar|antecipar)\b/.test(t)
   ) {
     return true;
   }
   if (
+    /\b(preciso|quero|gostaria|posso|da\s+pra|d[aá]\s+pra)\b/.test(t) &&
+    /\b(atrasar|adiar|remarcar|reagendar|mudar|alterar|trocar)\b/.test(t) &&
+    /\b(visita|agenda|data|dia|hor[aá]rio)\b/.test(t)
+  ) {
+    return true;
+  }
+  if (
     /\b(atrasar|adiar|remarcar|reagendar|mudar|alterar|trocar|antecipar)\b/.test(t) &&
-    /\b(visita|agenda|hor[aá]rio|marcad[oa])\b/.test(t)
+    /\b(visita|agenda|hor[aá]rio|marcad[oa]|data|dia)\b/.test(t)
   ) {
     return true;
   }
@@ -192,6 +199,7 @@ export function resolveQualificationChoice(
 ): QualificationChoice | null {
   const t = message.trim().toLowerCase();
   if (!t || t.length > 200) return null;
+  if (wantsReschedule(message)) return null;
 
   if (QUAL_BEFORE_MEETING.test(t) && !/\bpessoalmente\b/i.test(t)) {
     return "before";
@@ -199,7 +207,11 @@ export function resolveQualificationChoice(
 
   if (/\bpessoalmente\b/i.test(t)) return "at_meeting";
   if (/\bconversamos\b/i.test(t) && !/\bantes\b/i.test(t)) return "at_meeting";
-  if (/\b(na\s+)?visita\b/i.test(t) && !/\bantes\b/i.test(t)) {
+  if (
+    /\b(na\s+)?visita\b/i.test(t) &&
+    !/\bantes\b/i.test(t) &&
+    !/\b(mudar|alterar|remarcar|reagendar|trocar|data|dia)\b/i.test(t)
+  ) {
     return "at_meeting";
   }
   if (/\b(reuni[aã]o|encontro|presencial|no\s+dia)\b/i.test(t)) {

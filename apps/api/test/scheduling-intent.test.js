@@ -6,6 +6,8 @@ import {
   looksLikeSlotChoice,
   botMessageOfferedNumberedSlots,
   resolveVisitConfirmationReply,
+  wantsReschedule,
+  resolveQualificationChoice,
 } from "../dist/lib/scheduling-intent.js";
 import { findRequestedSlot } from "../dist/services/scheduling-service.js";
 
@@ -102,6 +104,23 @@ Qual número funciona melhor?`;
 
   it("detecta lista numerada da LLM", () => {
     assert.equal(botMessageOfferedNumberedSlots(sample), true);
+  });
+});
+
+describe("wantsReschedule", () => {
+  it("detecta alterar agenda e mudar data da visita", () => {
+    assert.equal(
+      wantsReschedule("Preciso alterar minha agenda seria possível?"),
+      true,
+    );
+    assert.equal(wantsReschedule("Quero mudar a data da visita"), true);
+  });
+});
+
+describe("resolveQualificationChoice vs remarcação", () => {
+  it("não confunde mudar data com na visita", () => {
+    assert.equal(resolveQualificationChoice("Quero mudar a data da visita"), null);
+    assert.equal(wantsReschedule("Quero mudar a data da visita"), true);
   });
 });
 
