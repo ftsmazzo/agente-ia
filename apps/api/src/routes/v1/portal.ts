@@ -33,6 +33,9 @@ import {
   getConversationThread,
   listConversations,
 } from "../../services/portal-conversations-service.js";
+import { listPortalContacts } from "../../services/portal-contacts-service.js";
+import { resetConversationForPhone } from "../../services/conversation-reset.js";
+import { setConversationMode } from "../../services/conversation-state.js";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -82,6 +85,11 @@ const blackoutSchema = z.object({
   startsAt: z.string().datetime(),
   endsAt: z.string().datetime(),
   label: z.string().max(255).optional(),
+});
+
+const conversationModeSchema = z.object({
+  mode: z.enum(["bot", "human", "paused"]),
+  reason: z.string().max(128).optional(),
 });
 
 export async function portalRoutes(app: FastifyInstance): Promise<void> {
@@ -224,6 +232,62 @@ export async function portalRoutes(app: FastifyInstance): Promise<void> {
     return reply.send(thread);
   });
 
+  app.patch("/v1/portal/conversations/:phone/mode", async (request, reply) => {
+    const phone = (request.params as { phone: string }).phone.replace(/\D/g, "");
+    if (!phone) {
+      return reply.status(400).send({ error: "invalid_phone" });
+    }
+    const parsed = conversationModeSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        error: "validation_error",
+        details: parsed.error.flatten(),
+      });
+    }
+    await setConversationMode(app.db, phone, parsed.data.mode, {
+      reason: parsed.data.reason ?? "portal_manual",
+    });
+    return reply.send({ ok: true, phone, mode: parsed.data.mode });
+  });
+
+  app.post(
+    "/v1/portal/conversations/:phone/reset",
+    { preHandler: requirePortalRole(["installer"]) },
+    async (request, reply) => {
+      const phone = (request.params as { phone: string }).phone.replace(
+        /\D/g,
+        "",
+      );
+      if (!phone) {
+        return reply.status(400).send({ error: "invalid_phone" });
+      }
+      const body = z
+        .object({ cancelAppointments: z.boolean().optional() })
+        .safeParse(request.body ?? {});
+      const result = await resetConversationForPhone(
+        app.db,
+        app.redis,
+        phone,
+        { cancelAppointments: body.data?.cancelAppointments },
+      );
+      return reply.send({ ok: true, phone, ...result });
+    },
+  );
+
+  app.get("/v1/portal/contacts", async (request, reply) => {
+    const query = request.query as {
+      limit?: string;
+      offset?: string;
+      search?: string;
+    };
+    const result = await listPortalContacts(app.db, {
+      limit: query.limit ? Number(query.limit) : 50,
+      offset: query.offset ? Number(query.offset) : 0,
+      search: query.search,
+    });
+    return reply.send(result);
+  });
+
   app.get("/v1/portal/ops/failed-messages", async (request, reply) => {
     const query = request.query as { limit?: string; all?: string };
     const items = await listFailedMessages(app.db, {
@@ -251,6 +315,8 @@ export async function portalRoutes(app: FastifyInstance): Promise<void> {
     let propertiesActive = 0;
     let appointmentsUpcoming = 0;
     let failedMessages = 0;
+    let contactsTotal = 0;
+    let conversationsTotal = 0;
 
     try {
       const catalog = await getCatalogStats(app.db);
@@ -266,6 +332,16 @@ export async function portalRoutes(app: FastifyInstance): Promise<void> {
         `SELECT COUNT(*)::text AS count FROM app.failed_messages WHERE resolved_at IS NULL`,
       );
       failedMessages = Number(failed.rows[0]?.count ?? 0);
+
+      const contacts = await app.db.query<{ count: string }>(
+        `SELECT COUNT(*)::text AS count FROM app.contacts`,
+      );
+      contactsTotal = Number(contacts.rows[0]?.count ?? 0);
+
+      const convs = await app.db.query<{ count: string }>(
+        `SELECT COUNT(*)::text AS count FROM app.conversation_state`,
+      );
+      conversationsTotal = Number(convs.rows[0]?.count ?? 0);
     } catch {
       /* dashboard parcial ok */
     }
@@ -282,6 +358,7 @@ export async function portalRoutes(app: FastifyInstance): Promise<void> {
       features,
       catalog: { propertiesActive },
       scheduling: { appointmentsUpcoming },
+      crm: { contactsTotal, conversationsTotal },
       ops: { failedMessagesUnresolved: failedMessages },
     });
   });

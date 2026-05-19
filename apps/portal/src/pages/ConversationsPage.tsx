@@ -1,10 +1,11 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import {
   api,
   type ConversationEvent,
   type ConversationSummary,
   type ConversationThread,
+  type PortalUser,
 } from "../api.js";
 
 function formatPhone(phone: string): string {
@@ -48,6 +49,8 @@ function EventBubble({ event }: { event: ConversationEvent }) {
 }
 
 export function ConversationsPage() {
+  const { user } = useOutletContext<{ user: PortalUser | null }>();
+  const [searchParams] = useSearchParams();
   const [items, setItems] = useState<ConversationSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
@@ -55,7 +58,9 @@ export function ConversationsPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [thread, setThread] = useState<ConversationThread | null>(null);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [modeBusy, setModeBusy] = useState(false);
 
   async function loadList(q?: string) {
     const { items: list, total: t } = await api.getConversations({
@@ -86,6 +91,14 @@ export function ConversationsPage() {
     );
   }, []);
 
+  useEffect(() => {
+    const phone = searchParams.get("phone")?.replace(/\D/g, "");
+    if (phone && phone.length >= 10) {
+      loadThread(phone);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   function onSearch(e: FormEvent) {
     e.preventDefault();
     setQuery(search);
@@ -97,6 +110,42 @@ export function ConversationsPage() {
   function backToList() {
     setSelected(null);
     setThread(null);
+    setMessage("");
+  }
+
+  async function changeMode(mode: "bot" | "human" | "paused") {
+    if (!thread) return;
+    setModeBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      await api.setConversationMode(thread.phone, mode);
+      setMessage(`Modo alterado para ${modeLabel(mode)}.`);
+      await loadThread(thread.phone);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erro ao alterar modo");
+    } finally {
+      setModeBusy(false);
+    }
+  }
+
+  async function resetConversation() {
+    if (!thread || !window.confirm(
+      "Zerar memória do agente e qualificação deste contato? Visitas agendadas serão canceladas.",
+    )) {
+      return;
+    }
+    setModeBusy(true);
+    setError("");
+    try {
+      await api.resetConversation(thread.phone);
+      setMessage("Conversa reiniciada.");
+      await loadThread(thread.phone);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erro ao reiniciar");
+    } finally {
+      setModeBusy(false);
+    }
   }
 
   const showRedis =
@@ -112,6 +161,7 @@ export function ConversationsPage() {
         texto; eventos antigos podem aparecer só como registro de sistema.
       </p>
 
+      {message && <p style={{ color: "#6bcf8e" }}>{message}</p>}
       {error && <p className="error">{error}</p>}
 
       {!selected ? (
@@ -186,10 +236,53 @@ export function ConversationsPage() {
                 <h2 style={{ margin: 0 }}>
                   {thread.displayName ?? formatPhone(thread.phone)}
                 </h2>
-                <p className="item-meta">{formatPhone(thread.phone)}</p>
+                <p className="item-meta">
+                  {formatPhone(thread.phone)} ·{" "}
+                  <Link to={`/contatos?search=${encodeURIComponent(thread.phone)}`}>
+                    Ver no CRM
+                  </Link>
+                </p>
               </div>
               <span className="conv-mode">{modeLabel(thread.mode)}</span>
             </header>
+
+            <div className="conv-actions">
+              <button
+                type="button"
+                className={`btn btn-ghost${thread.mode === "bot" ? " active" : ""}`}
+                disabled={modeBusy}
+                onClick={() => changeMode("bot")}
+              >
+                Bot ativo
+              </button>
+              <button
+                type="button"
+                className={`btn btn-ghost${thread.mode === "human" ? " active" : ""}`}
+                disabled={modeBusy}
+                onClick={() => changeMode("human")}
+              >
+                Corretor
+              </button>
+              <button
+                type="button"
+                className={`btn btn-ghost${thread.mode === "paused" ? " active" : ""}`}
+                disabled={modeBusy}
+                onClick={() => changeMode("paused")}
+              >
+                Pausado
+              </button>
+              {user?.role === "installer" && (
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={modeBusy}
+                  onClick={resetConversation}
+                  style={{ color: "var(--danger)" }}
+                >
+                  Reiniciar conversa
+                </button>
+              )}
+            </div>
 
             {loading ? (
               <p style={{ color: "var(--muted)" }}>Carregando…</p>

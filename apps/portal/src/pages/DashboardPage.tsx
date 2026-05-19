@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, type Dashboard } from "../api.js";
 
 export function DashboardPage() {
@@ -30,6 +31,10 @@ export function DashboardPage() {
             <span>Itens no catálogo</span>
           </div>
           <div className="stat">
+            <strong>{data.crm.contactsTotal}</strong>
+            <span>Contatos</span>
+          </div>
+          <div className="stat">
             <strong>{data.scheduling.appointmentsUpcoming}</strong>
             <span>Visitas agendadas</span>
           </div>
@@ -41,22 +46,28 @@ export function DashboardPage() {
       </div>
 
       <div className="card">
-        <h2>Próximos passos</h2>
+        <h2>Atalhos</h2>
         <ul style={{ margin: 0, paddingLeft: "1.2rem", color: "var(--muted)" }}>
           <li>
-            Ajuste horários em <a href="/agenda">Agenda</a>
+            <Link to="/contatos">Contatos</Link> — CRM automático do WhatsApp
           </li>
           <li>
-            Atualize a planilha em <a href="/catalogo">Catálogo</a>
+            <Link to="/conversas">Conversas</Link> — histórico e modo bot/corretor
           </li>
           <li>
-            Personalize tom e empresa em <a href="/agente">Agente</a>
+            <Link to="/agenda">Agenda</Link> — horários e visitas
+          </li>
+          <li>
+            <Link to="/catalogo">Catálogo</Link> — importar CSV
+          </li>
+          <li>
+            <Link to="/agente">Agente</Link> — tom e empresa
           </li>
           {data.ops.failedMessagesUnresolved > 0 && (
             <li>
-              <a href="/monitor">
+              <Link to="/monitor">
                 {data.ops.failedMessagesUnresolved} falha(s) pendente(s)
-              </a>
+              </Link>
             </li>
           )}
         </ul>

@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.0] - 2026-05-18
+
+### Added
+
+- Portal: tela **Contatos** (CRM automático — qualificação, código, status)
+- Portal: em **Conversas**, alternar modo bot/corretor/pausado e reiniciar conversa (implantador)
+- API: `GET /v1/portal/contacts`, `PATCH .../conversations/:phone/mode`, `POST .../reset`
+- Dashboard: contadores de contatos e atalhos atualizados
+
+### Fixed
+
+- Reset de conversa: remove qualificação de `lead_actions` sem coluna inexistente `action_type`
+
 ## [0.15.0] - 2026-05-18
 
 ### Added

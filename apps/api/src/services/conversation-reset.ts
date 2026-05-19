@@ -49,8 +49,7 @@ export async function resetConversationForPhone(
   await pool.query(
     `UPDATE app.lead_actions
      SET metadata = metadata - 'qualification' - 'appointment'
-     WHERE phone = $1
-       AND action_type IN ('qualification', 'visit_scheduled')`,
+     WHERE phone = $1`,
     [phone],
   );
 

@@ -46,6 +46,7 @@ export type Dashboard = {
   };
   catalog: { propertiesActive: number };
   scheduling: { appointmentsUpcoming: number };
+  crm: { contactsTotal: number; conversationsTotal: number };
   ops: { failedMessagesUnresolved: number };
 };
 
@@ -150,6 +151,22 @@ export type ConversationThread = {
   mode: "bot" | "human" | "paused";
   events: ConversationEvent[];
   redisHistory: Array<{ role: "user" | "assistant"; content: string }>;
+};
+
+export type ContactSummary = {
+  phone: string;
+  displayName: string | null;
+  updatedAt: string;
+  propertyCode: string | null;
+  leadStatus: string | null;
+  qualification: {
+    budgetMaxBrl: number | null;
+    payment: string | null;
+    buyingWith: string | null;
+    timelineHint: string | null;
+    visitRequested: boolean;
+    incomeHint: string | null;
+  } | null;
 };
 
 function token(): string | null {
@@ -349,6 +366,38 @@ export const api = {
   getConversation(phone: string) {
     const encoded = encodeURIComponent(phone.replace(/\D/g, ""));
     return request<ConversationThread>(`/v1/portal/conversations/${encoded}`);
+  },
+  setConversationMode(phone: string, mode: "bot" | "human" | "paused") {
+    const encoded = encodeURIComponent(phone.replace(/\D/g, ""));
+    return request<{ ok: boolean; phone: string; mode: string }>(
+      `/v1/portal/conversations/${encoded}/mode`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ mode, reason: "portal_manual" }),
+      },
+    );
+  },
+  resetConversation(phone: string) {
+    const encoded = encodeURIComponent(phone.replace(/\D/g, ""));
+    return request<{
+      ok: boolean;
+      phone: string;
+      redisKeysDeleted: number;
+      appointmentsCancelled: number;
+    }>(`/v1/portal/conversations/${encoded}/reset`, {
+      method: "POST",
+      body: JSON.stringify({ cancelAppointments: true }),
+    });
+  },
+  getContacts(params?: { search?: string; limit?: number; offset?: number }) {
+    const q = new URLSearchParams();
+    if (params?.search) q.set("search", params.search);
+    if (params?.limit) q.set("limit", String(params.limit));
+    if (params?.offset) q.set("offset", String(params.offset));
+    const qs = q.toString();
+    return request<{ items: ContactSummary[]; total: number }>(
+      `/v1/portal/contacts${qs ? `?${qs}` : ""}`,
+    );
   },
   getFailedMessages() {
     return request<{ items: FailedMessage[] }>(

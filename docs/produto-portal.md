@@ -36,7 +36,7 @@ Logs esperados: `[portal-seed] usuário criado: ...` ou `usuário já existe (se
 | Papel | Env | Portal |
 |-------|-----|--------|
 | `installer` | `PORTAL_ADMIN_*` | Tudo + criar usuários extras em Equipe |
-| `client` | `PORTAL_CLIENT_*` | Agenda, agente, dashboard |
+| `client` | `PORTAL_CLIENT_*` | Agenda, agente, contatos, conversas, dashboard |
 
 Secrets (Postgres, LLM, Evolution) ficam só no EasyPanel — não no portal.
 
@@ -68,7 +68,8 @@ Ver arquitetura em [arquitetura-persona-rag.md](./arquitetura-persona-rag.md). O
 | `/agenda` | Horários, visitas, bloqueios |
 | `/catalogo` | CSV: analisar colunas, importar (substituir ou mesclar), exportar |
 | `/agente` | Tom, empresa, objetivos |
-| `/conversas` | Histórico de conversas WhatsApp |
+| `/contatos` | CRM: contatos e qualificação |
+| `/conversas` | Histórico + modo bot/corretor |
 | `/monitor` | Falhas de processamento |
 | `/equipe` | Criar login cliente (implantador) |
 
@@ -77,3 +78,4 @@ Ver arquitetura em [arquitetura-persona-rag.md](./arquitetura-persona-rag.md). O
 - v0.13 ✅ Catálogo + monitor + agenda completa
 - v0.14 ✅ Catálogo CSV genérico + mesclar/exportar
 - v0.15 ✅ Histórico de conversas no painel
+- v0.16 ✅ Contatos (CRM) + controle de modo nas conversas
