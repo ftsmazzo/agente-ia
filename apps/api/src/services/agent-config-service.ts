@@ -1,4 +1,12 @@
 import type pg from "pg";
+import {
+  formatCapabilitiesPromptBlock,
+  loadProductManifest,
+  normalizeCapabilities,
+  capabilityEnablesScheduling,
+  getPortalCapabilities,
+  type ProductManifest,
+} from "./product-capabilities-service.js";
 
 export type AgentObjectives = {
   schedule: boolean;
@@ -7,10 +15,12 @@ export type AgentObjectives = {
 };
 
 export type AgentConfig = {
+  productId: string;
   vertical: string;
   companyProfile: string;
   tone: string;
   objectives: AgentObjectives;
+  capabilities: string[];
   customRules: string;
   updatedAt: string;
 };
@@ -28,34 +38,58 @@ const TONE_LABELS: Record<string, string> = {
   enthusiastic: "Entusiasmado",
 };
 
+function rowToConfig(
+  row: {
+    vertical: string;
+    company_profile: string;
+    tone: string;
+    objectives: AgentObjectives;
+    custom_rules: string;
+    product_id: string;
+    capabilities: unknown;
+    updated_at: Date;
+  },
+  manifest: ProductManifest,
+): AgentConfig {
+  const objectives = row?.objectives ?? DEFAULT_OBJECTIVES;
+  const capabilities = normalizeCapabilities(row?.capabilities, manifest);
+
+  return {
+    productId: row?.product_id ?? manifest.id,
+    vertical: row?.vertical ?? "realty",
+    companyProfile: row?.company_profile ?? "",
+    tone: row?.tone ?? "professional_warm",
+    objectives: {
+      schedule:
+        objectives.schedule !== false &&
+        capabilityEnablesScheduling(capabilities),
+      capture: objectives.capture !== false,
+      qualify: objectives.qualify !== false,
+    },
+    capabilities,
+    customRules: row?.custom_rules ?? "",
+    updatedAt: (row?.updated_at ?? new Date()).toISOString(),
+  };
+}
+
 export async function getAgentConfig(pool: pg.Pool): Promise<AgentConfig> {
+  const manifest = await loadProductManifest();
   const { rows } = await pool.query<{
     vertical: string;
     company_profile: string;
     tone: string;
     objectives: AgentObjectives;
     custom_rules: string;
+    product_id: string;
+    capabilities: unknown;
     updated_at: Date;
   }>(
-    `SELECT vertical, company_profile, tone, objectives, custom_rules, updated_at
+    `SELECT vertical, company_profile, tone, objectives, custom_rules,
+            product_id, capabilities, updated_at
      FROM app.agent_config WHERE id = 1`,
   );
 
-  const row = rows[0];
-  const objectives = row?.objectives ?? DEFAULT_OBJECTIVES;
-
-  return {
-    vertical: row?.vertical ?? "realty",
-    companyProfile: row?.company_profile ?? "",
-    tone: row?.tone ?? "professional_warm",
-    objectives: {
-      schedule: objectives.schedule !== false,
-      capture: objectives.capture !== false,
-      qualify: objectives.qualify !== false,
-    },
-    customRules: row?.custom_rules ?? "",
-    updatedAt: (row?.updated_at ?? new Date()).toISOString(),
-  };
+  return rowToConfig(rows[0] ?? ({} as never), manifest);
 }
 
 export async function updateAgentConfig(
@@ -64,9 +98,11 @@ export async function updateAgentConfig(
     companyProfile: string;
     tone: string;
     objectives: AgentObjectives;
+    capabilities: string[];
     customRules: string;
   }>,
 ): Promise<AgentConfig> {
+  const manifest = await loadProductManifest();
   const current = await getAgentConfig(pool);
 
   const companyProfile =
@@ -78,20 +114,36 @@ export async function updateAgentConfig(
     patch.customRules !== undefined
       ? patch.customRules.slice(0, 4000)
       : current.customRules;
-  const objectives = patch.objectives ?? current.objectives;
+  let capabilities =
+    patch.capabilities !== undefined
+      ? normalizeCapabilities(patch.capabilities, manifest)
+      : current.capabilities;
+
+  if (capabilities.includes("visit-reminders") && !capabilities.includes("scheduling")) {
+    capabilities = [...capabilities, "scheduling"];
+  }
+
+  const objectives = {
+    ...(patch.objectives ?? current.objectives),
+    schedule: capabilityEnablesScheduling(capabilities)
+      ? (patch.objectives?.schedule ?? current.objectives.schedule) !== false
+      : false,
+  };
 
   await pool.query(
     `UPDATE app.agent_config
      SET company_profile = $1,
          tone = $2,
          objectives = $3::jsonb,
-         custom_rules = $4,
+         capabilities = $4::jsonb,
+         custom_rules = $5,
          updated_at = NOW()
      WHERE id = 1`,
     [
       companyProfile,
       tone,
       JSON.stringify(objectives),
+      JSON.stringify(capabilities),
       customRules,
     ],
   );
@@ -100,7 +152,9 @@ export async function updateAgentConfig(
 }
 
 /** Bloco injetado no system prompt (camadas 3–5). */
-export function formatAgentConfigPromptBlock(config: AgentConfig): string {
+export async function formatAgentConfigPromptBlock(
+  config: AgentConfig,
+): Promise<string> {
   const lines = [
     "## Configuração desta empresa (portal)",
     `Tom de voz: ${TONE_LABELS[config.tone] ?? config.tone}`,
@@ -126,5 +180,32 @@ export function formatAgentConfigPromptBlock(config: AgentConfig): string {
     lines.push("", "### Regras adicionais do cliente", config.customRules.trim());
   }
 
+  const capBlock = await formatCapabilitiesPromptBlock(
+    config.capabilities,
+    config.productId,
+  );
+  lines.push("", capBlock);
+
   return lines.join("\n");
+}
+
+export async function getAgentConfigCatalog(pool: pg.Pool) {
+  const manifest = await loadProductManifest();
+  const config = await getAgentConfig(pool);
+  return {
+    product: {
+      id: manifest.id,
+      name: manifest.name,
+      description: manifest.description,
+    },
+    capabilities: getPortalCapabilities(manifest).map((c) => ({
+      id: c.id,
+      label: c.label,
+      description: c.description,
+      enabled: config.capabilities.includes(c.id),
+      requires: c.requires.filter((r) => r !== "whatsapp-core"),
+      workflows: c.workflows,
+    })),
+    whatsappCore: manifest.capabilities.find((c) => c.id === "whatsapp-core"),
+  };
 }

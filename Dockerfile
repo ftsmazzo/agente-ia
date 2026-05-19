@@ -18,6 +18,8 @@ COPY tsconfig.base.json ./
 COPY packages/shared ./packages/shared
 COPY apps/api ./apps/api
 COPY config/prompts ./config/prompts
+COPY config/product ./config/product
+COPY config/capabilities ./config/capabilities
 
 RUN npm run build -w @realty/shared && npm run build -w @realty/api
 
@@ -38,6 +40,8 @@ COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/apps/api/package.json ./apps/api/
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/config/prompts ./config/prompts
+COPY --from=builder /app/config/product ./config/product
+COPY --from=builder /app/config/capabilities ./config/capabilities
 
 # Migrations run automatically on container start (docker-entrypoint.mjs)
 COPY db/migrations ./db/migrations

@@ -3,8 +3,13 @@ import { z } from "zod";
 import {
   formatAgentConfigPromptBlock,
   getAgentConfig,
+  getAgentConfigCatalog,
   updateAgentConfig,
 } from "../../services/agent-config-service.js";
+import {
+  evaluateCapabilityInstall,
+  loadProductManifest,
+} from "../../services/product-capabilities-service.js";
 import {
   authenticatePortalUser,
   createPortalUser,
@@ -96,6 +101,7 @@ const agentPatchSchema = z.object({
     })
     .optional(),
   customRules: z.string().max(4000).optional(),
+  capabilities: z.array(z.string().min(1).max(64)).optional(),
 });
 
 const appointmentStatusSchema = z.enum([
@@ -593,8 +599,21 @@ export async function portalRoutes(app: FastifyInstance): Promise<void> {
   app.get("/v1/portal/agent-config/preview", async (_request, reply) => {
     const config = await getAgentConfig(app.db);
     return reply.send({
-      block: formatAgentConfigPromptBlock(config),
+      block: await formatAgentConfigPromptBlock(config),
     });
+  });
+
+  app.get("/v1/portal/product/agentes-ia", async (_request, reply) => {
+    const catalog = await getAgentConfigCatalog(app.db);
+    const manifest = await loadProductManifest();
+    const config = await getAgentConfig(app.db);
+    const install = await evaluateCapabilityInstall(
+      manifest,
+      config.capabilities,
+      app.config.features,
+      app.db,
+    );
+    return reply.send({ ...catalog, install });
   });
 
   app.post(

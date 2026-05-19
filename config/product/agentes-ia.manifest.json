@@ -1,0 +1,114 @@
+{
+  "id": "agentes-ia",
+  "name": "Agentes IA — WhatsApp imobiliário",
+  "description": "Pacote base: catálogo, RAG, agenda, lembretes ao cliente e handoff humano.",
+  "defaultCapabilities": [
+    "catalog",
+    "property-rag",
+    "scheduling",
+    "visit-reminders",
+    "handoff"
+  ],
+  "capabilities": [
+    {
+      "id": "whatsapp-core",
+      "label": "WhatsApp (Evolution + n8n)",
+      "description": "Ponte Evolution → API → resposta no WhatsApp. Obrigatório em toda instalação.",
+      "portalToggle": false,
+      "promptFile": null,
+      "apiFeatures": [],
+      "workflows": ["01-whatsapp-agent.json"],
+      "requires": [],
+      "env": {
+        "api": ["API_INTERNAL_KEY", "DEBOUNCE_MS", "DEBOUNCE_MAX_WAIT_MS"],
+        "n8n": [
+          "AGENT_API_KEY",
+          "PUBLIC_AGENT_API_URL",
+          "EVOLUTION_BASE_URL",
+          "EVOLUTION_API_KEY",
+          "EVOLUTION_INSTANCE",
+          "DEBOUNCE_MS",
+          "N8N_BLOCK_ENV_ACCESS_IN_NODE"
+        ]
+      }
+    },
+    {
+      "id": "catalog",
+      "label": "Catálogo",
+      "description": "Planilha/CSV de imóveis no Postgres (códigos AP####) e busca por código no chat.",
+      "portalToggle": true,
+      "promptFile": "catalog.md",
+      "apiFeatures": [],
+      "workflows": [],
+      "requires": ["whatsapp-core"],
+      "env": {
+        "api": ["PROPERTIES_IMPORT_ON_START", "PROPERTIES_XLSX_PATH"]
+      }
+    },
+    {
+      "id": "property-rag",
+      "label": "RAG (fichas inteligentes)",
+      "description": "Consulta à base de conhecimento externa para perfil e fichas detalhadas.",
+      "portalToggle": true,
+      "promptFile": "property-rag.md",
+      "apiFeatures": ["propertyRag"],
+      "workflows": [],
+      "requires": ["whatsapp-core"],
+      "env": {
+        "api": [
+          "FEATURE_PROPERTY_RAG",
+          "RAG_API_URL",
+          "RAG_API_KEY",
+          "RAG_KNOWLEDGE_BASE_ID"
+        ]
+      }
+    },
+    {
+      "id": "scheduling",
+      "label": "Agenda",
+      "description": "Horários reais, agendamento e remarcação determinísticos no WhatsApp.",
+      "portalToggle": true,
+      "promptFile": "scheduling.md",
+      "apiFeatures": ["scheduling"],
+      "workflows": [],
+      "requires": ["whatsapp-core"],
+      "env": {
+        "api": ["FEATURE_SCHEDULING"]
+      }
+    },
+    {
+      "id": "visit-reminders",
+      "label": "Lembretes de visita",
+      "description": "Cron n8n: lembrete ~24h ao cliente com SIM/NÃO; confirma ou libera horário no chat.",
+      "portalToggle": true,
+      "promptFile": "visit-reminders.md",
+      "apiFeatures": ["scheduling"],
+      "workflows": ["06-ops-notifications.json"],
+      "requires": ["scheduling"],
+      "env": {
+        "n8n": [
+          "EVOLUTION_INSTANCE",
+          "EVOLUTION_BASE_URL",
+          "EVOLUTION_API_KEY",
+          "AGENT_API_KEY",
+          "PUBLIC_AGENT_API_URL"
+        ],
+        "api": []
+      }
+    },
+    {
+      "id": "handoff",
+      "label": "Handoff humano",
+      "description": "Transfere conversa para atendente (Chatwoot) quando o cliente pede pessoa.",
+      "portalToggle": true,
+      "promptFile": "handoff.md",
+      "apiFeatures": ["humanHandoff"],
+      "workflows": ["04-sync-chatwoot.json"],
+      "requires": ["whatsapp-core"],
+      "env": {
+        "api": ["FEATURE_HUMAN_HANDOFF"],
+        "n8n": ["PUBLIC_AGENT_API_URL", "AGENT_API_KEY"]
+      }
+    }
+  ]
+}

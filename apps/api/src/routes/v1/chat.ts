@@ -277,7 +277,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
 
     try {
       const agentConfig = await getAgentConfig(app.db);
-      const tenantBlock = formatAgentConfigPromptBlock(agentConfig);
+      const tenantBlock = await formatAgentConfigPromptBlock(agentConfig);
       return `${cachedSystemPrompt}\n\n${tenantBlock}`;
     } catch {
       return cachedSystemPrompt;
@@ -331,8 +331,19 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
       const mode = conversationState?.mode ?? "bot";
       await touchConversation(app.db, phone, mode);
 
-      if (
+      const agentConfig = await getAgentConfig(app.db);
+      const handoffOn =
         config.features.humanHandoff &&
+        agentConfig.capabilities.includes("handoff");
+      const schedulingOn =
+        schedulingOn &&
+        agentConfig.capabilities.includes("scheduling");
+      const ragOn =
+        config.features.propertyRag &&
+        agentConfig.capabilities.includes("property-rag");
+
+      if (
+        handoffOn &&
         (mode === "human" || mode === "paused")
       ) {
         return reply.send({
@@ -346,7 +357,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         (await getContactDisplayName(app.db, phone)) ??
         resolveDisplayName(body.metadata, body.message);
 
-      if (config.features.humanHandoff && wantsReturnToBot(body.message)) {
+      if (handoffOn && wantsReturnToBot(body.message)) {
         await setConversationMode(app.db, phone, "bot", {
           reason: "client_return_to_bot",
         });
@@ -373,7 +384,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         } satisfies ChatResponse);
       }
 
-      if (config.features.humanHandoff && wantsHumanHandoff(body.message)) {
+      if (handoffOn && wantsHumanHandoff(body.message)) {
         await setConversationMode(app.db, phone, "human", {
           reason: "client_requested_human",
         });
@@ -448,12 +459,12 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
-      const activeAppointmentEarly = config.features.scheduling
+      const activeAppointmentEarly = schedulingOn
         ? await getNextActiveAppointment(app.db, phone)
         : null;
 
       if (
-        config.features.scheduling &&
+        schedulingOn &&
         schedulingState?.status === "awaiting_qualification_choice" &&
         !wantsReschedule(body.message)
       ) {
@@ -530,7 +541,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
       }
 
       if (
-        config.features.scheduling &&
+        schedulingOn &&
         schedulingState?.status === "awaiting_visit_confirmation" &&
         schedulingState.appointmentId &&
         !wantsReschedule(body.message)
@@ -651,7 +662,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         schedulingState?.appointmentId ?? activeAppointment?.id;
 
       if (
-        config.features.scheduling &&
+        schedulingOn &&
         activeAppointment &&
         rescheduleAppointmentId &&
         (rescheduleIntent ||
@@ -886,7 +897,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         bookingFollowUp ||
         acceptsVisit;
       const shouldHandleScheduling =
-        config.features.scheduling &&
+        schedulingOn &&
         (isAwaitingSchedulingChoice ||
           isAwaitingVisitAccept ||
           slotChoiceMessage ||
@@ -1192,7 +1203,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         }
       }
 
-      if (config.features.scheduling && mustBlockLlmForScheduling) {
+      if (schedulingOn && mustBlockLlmForScheduling) {
         return reply.send(
           await offerSlotsDeterministic(app, {
             phone,
@@ -1237,7 +1248,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
           body.message,
         );
       if (
-        config.features.scheduling &&
+        schedulingOn &&
         !mustBlockLlmForScheduling &&
         schedulingState?.status !== "qualification_closed" &&
         (schedulingConversationActive || userAskedVisitOrSchedule)
@@ -1249,7 +1260,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
       let propertyKnowledge: string | undefined;
       let ragSkipReason: string | undefined;
       if (!config.rag.enabled) {
-        ragSkipReason = config.features.propertyRag
+        ragSkipReason = ragOn
           ? "rag_not_configured"
           : "feature_property_rag_off";
       } else if (!shouldQueryPropertyRag(config.rag, intent)) {
@@ -1326,7 +1337,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
             config.llm.maxHistoryTurns,
           );
 
-          if (config.features.scheduling) {
+          if (schedulingOn) {
             if (
               botMessageOfferedNumberedSlots(replyText) &&
               schedulingState?.status !== "awaiting_qualification_choice"

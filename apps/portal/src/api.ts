@@ -76,11 +76,38 @@ export type SchedulingSettings = {
 };
 
 export type AgentConfig = {
+  productId: string;
   vertical: string;
   companyProfile: string;
   tone: string;
   objectives: { schedule: boolean; capture: boolean; qualify: boolean };
+  capabilities: string[];
   customRules: string;
+};
+
+export type CapabilityInstallRow = {
+  id: string;
+  label: string;
+  enabledInPortal: boolean;
+  installed: boolean;
+  status: "ok" | "warn" | "error";
+  detail: string;
+  workflows: string[];
+  envApi: string[];
+  envN8n: string[];
+};
+
+export type ProductAgentesIa = {
+  product: { id: string; name: string; description: string };
+  capabilities: Array<{
+    id: string;
+    label: string;
+    description: string;
+    enabled: boolean;
+    requires: string[];
+    workflows: string[];
+  }>;
+  install: CapabilityInstallRow[];
 };
 
 export type CatalogStats = {
@@ -332,6 +359,9 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(body),
     });
+  },
+  getProductAgentesIa() {
+    return request<ProductAgentesIa>("/v1/portal/product/agentes-ia");
   },
   createClientUser(body: { email: string; password: string; name: string }) {
     return request<{ user: PortalUser }>("/v1/portal/users", {
