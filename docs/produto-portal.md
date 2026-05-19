@@ -72,6 +72,7 @@ Ver arquitetura em [arquitetura-persona-rag.md](./arquitetura-persona-rag.md). O
 | `/contatos` | CRM: contatos e qualificação |
 | `/conversas` | Histórico + modo bot/usuário |
 | `/monitor` | Falhas de processamento |
+| `/sistema` | Checklist de saúde da instalação (implantador) |
 | `/equipe` | Criar login cliente (implantador) |
 
 ## Roadmap UI
@@ -81,3 +82,4 @@ Ver arquitetura em [arquitetura-persona-rag.md](./arquitetura-persona-rag.md). O
 - v0.15 ✅ Histórico de conversas no painel
 - v0.16 ✅ Contatos (CRM) + controle de modo nas conversas
 - v0.17 ✅ Gestão WhatsApp (Evolution) no portal
+- v0.18 ✅ Checklist Sistema (saúde do deploy)

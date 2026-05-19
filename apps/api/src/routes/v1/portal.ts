@@ -41,6 +41,7 @@ import {
   disconnectWhatsApp,
   getWhatsAppStatus,
 } from "../../services/evolution-service.js";
+import { getSystemOverview } from "../../services/portal-system-service.js";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -291,6 +292,11 @@ export async function portalRoutes(app: FastifyInstance): Promise<void> {
       search: query.search,
     });
     return reply.send(result);
+  });
+
+  app.get("/v1/portal/system", async (_request, reply) => {
+    const system = await getSystemOverview(app.config, app.db);
+    return reply.send({ system });
   });
 
   app.get("/v1/portal/whatsapp/status", async (_request, reply) => {

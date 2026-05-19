@@ -73,6 +73,9 @@ export function DashboardPage() {
               </Link>
             </li>
           )}
+          <li>
+            <Link to="/sistema">Sistema</Link> — checklist da instalação
+          </li>
         </ul>
       </div>
     </>

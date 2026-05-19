@@ -30,7 +30,10 @@ export function Layout() {
         <NavLink to="/conversas">Conversas</NavLink>
         <NavLink to="/monitor">Monitor</NavLink>
         {user?.role === "installer" && (
-          <NavLink to="/equipe">Equipe</NavLink>
+          <>
+            <NavLink to="/sistema">Sistema</NavLink>
+            <NavLink to="/equipe">Equipe</NavLink>
+          </>
         )}
         <div style={{ flex: 1 }} />
         <button type="button" className="btn btn-ghost" onClick={logout}>

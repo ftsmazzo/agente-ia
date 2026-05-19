@@ -501,3 +501,61 @@ textarea {
   border-radius: 8px;
   font-size: 0.8rem;
 }
+
+.sys-overall {
+  border-left: 4px solid var(--surface2);
+}
+
+.sys-overall-ok {
+  border-left-color: #6bcf8e;
+}
+
+.sys-overall-warn {
+  border-left-color: #ffc107;
+}
+
+.sys-overall-error {
+  border-left-color: var(--danger);
+}
+
+.sys-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sys-list-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--surface2);
+}
+
+.sys-list-row:last-child {
+  border-bottom: none;
+}
+
+.sys-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.sys-ok {
+  background: rgba(107, 207, 142, 0.15);
+  color: #6bcf8e;
+}
+
+.sys-warn {
+  background: rgba(255, 193, 7, 0.15);
+  color: #ffc107;
+}
+
+.sys-error {
+  background: rgba(232, 93, 93, 0.12);
+  color: var(--danger);
+}

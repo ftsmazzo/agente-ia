@@ -166,6 +166,25 @@ export type WhatsAppStatus = {
   error: string | null;
 };
 
+export type ChecklistItem = {
+  id: string;
+  label: string;
+  status: "ok" | "warn" | "error";
+  detail: string;
+};
+
+export type SystemOverview = {
+  version: string;
+  overall: "ok" | "warn" | "error";
+  checks: { database: boolean; redis: boolean };
+  whatsapp: WhatsAppStatus;
+  llm: { enabled: boolean; provider: string; model: string };
+  rag: { enabled: boolean };
+  catalogActive: number;
+  failedMessages: number;
+  checklist: ChecklistItem[];
+};
+
 export type ContactSummary = {
   phone: string;
   displayName: string | null;
@@ -256,6 +275,9 @@ export const api = {
   },
   dashboard() {
     return request<Dashboard>("/v1/portal/dashboard");
+  },
+  getSystem() {
+    return request<{ system: SystemOverview }>("/v1/portal/system");
   },
   getScheduling() {
     return request<SchedulingSettings>("/v1/portal/scheduling/settings");

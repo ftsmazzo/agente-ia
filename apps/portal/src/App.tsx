@@ -11,6 +11,7 @@ import { MonitorPage } from "./pages/MonitorPage.js";
 import { ConversationsPage } from "./pages/ConversationsPage.js";
 import { ContactsPage } from "./pages/ContactsPage.js";
 import { WhatsAppPage } from "./pages/WhatsAppPage.js";
+import { SystemPage } from "./pages/SystemPage.js";
 import { TeamPage } from "./pages/TeamPage.js";
 
 function PrivateRoute({ children }: { children: ReactNode }) {
@@ -38,6 +39,7 @@ export function App() {
         <Route path="conversas" element={<ConversationsPage />} />
         <Route path="contatos" element={<ContactsPage />} />
         <Route path="whatsapp" element={<WhatsAppPage />} />
+        <Route path="sistema" element={<SystemPage />} />
         <Route path="equipe" element={<TeamPage />} />
       </Route>
     </Routes>
