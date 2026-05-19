@@ -153,6 +153,11 @@ export function WhatsAppPage() {
               {wa.error}
             </p>
           )}
+          {wa.stateRaw && wa.status === "unknown" && (
+            <p className="item-meta" style={{ margin: "0 0 1rem" }}>
+              Estado retornado pela Evolution: <code>{wa.stateRaw}</code>
+            </p>
+          )}
 
           <div className="wa-phone-box">
             <span className="wa-phone-label">Número na conta</span>

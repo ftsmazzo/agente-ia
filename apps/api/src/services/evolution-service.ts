@@ -26,27 +26,203 @@ export type WhatsAppConnectResult = {
 };
 
 type InstanceRow = {
-  instanceName?: string;
-  instanceId?: string;
+  instanceName: string;
   owner?: string;
   profileName?: string;
   profilePictureUrl?: string | null;
   status?: string;
-  integration?: { integration?: string };
+  integration?: string;
 };
 
-function parseOwnerPhone(owner: string | undefined): string | null {
-  if (!owner) return null;
-  const digits = owner.split("@")[0]?.replace(/\D/g, "");
-  return digits || null;
+function parseOwnerPhone(...sources: Array<string | undefined>): string | null {
+  for (const raw of sources) {
+    if (!raw) continue;
+    const digits = raw.split("@")[0]?.replace(/\D/g, "");
+    if (digits && digits.length >= 10) return digits;
+  }
+  return null;
 }
 
 function mapState(state: string | undefined): WhatsAppConnectionStatus {
-  const s = (state ?? "").toLowerCase();
-  if (s === "open") return "connected";
-  if (s === "connecting") return "connecting";
-  if (s === "close" || s === "closed") return "disconnected";
+  const s = (state ?? "").toLowerCase().trim();
+  if (
+    s === "open" ||
+    s === "connected" ||
+    s === "online" ||
+    s === "ready" ||
+    s === "authenticated"
+  ) {
+    return "connected";
+  }
+  if (s === "connecting" || s === "pairing" || s === "qrcode") {
+    return "connecting";
+  }
+  if (
+    s === "close" ||
+    s === "closed" ||
+    s === "disconnected" ||
+    s === "offline" ||
+    s === "logout"
+  ) {
+    return "disconnected";
+  }
   return "unknown";
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return null;
+}
+
+/** Extrai estado de conexão de qualquer formato Evolution v1/v2. */
+function extractState(payload: unknown): string | null {
+  const visit = (obj: unknown, depth = 0): string | null => {
+    if (depth > 4 || obj == null) return null;
+    const rec = asRecord(obj);
+    if (!rec) return null;
+
+    for (const key of [
+      "state",
+      "status",
+      "connectionStatus",
+      "connectionState",
+      "instanceStatus",
+    ]) {
+      const val = rec[key];
+      if (typeof val === "string" && val.trim()) return val.trim();
+    }
+
+    if (rec.instance) {
+      const nested = visit(rec.instance, depth + 1);
+      if (nested) return nested;
+    }
+    if (rec.data) {
+      const nested = visit(rec.data, depth + 1);
+      if (nested) return nested;
+    }
+
+    return null;
+  };
+
+  if (Array.isArray(payload)) {
+    for (const item of payload) {
+      const s = visit(item, 0);
+      if (s) return s;
+    }
+    return null;
+  }
+
+  return visit(payload, 0);
+}
+
+function normalizeInstanceRow(raw: Record<string, unknown>): InstanceRow {
+  const integration = raw.integration;
+  let integrationLabel: string | undefined;
+  if (typeof integration === "string") {
+    integrationLabel = integration;
+  } else if (integration && typeof integration === "object") {
+    const i = integration as Record<string, unknown>;
+    integrationLabel =
+      typeof i.integration === "string"
+        ? i.integration
+        : typeof i.channel === "string"
+          ? i.channel
+          : undefined;
+  }
+
+  const name = String(
+    raw.instanceName ?? raw.name ?? raw.instance ?? "",
+  ).trim();
+
+  const status = String(
+    raw.status ??
+      raw.state ??
+      raw.connectionStatus ??
+      raw.connectionState ??
+      "",
+  ).trim();
+
+  return {
+    instanceName: name,
+    owner: String(
+      raw.owner ??
+        raw.ownerJid ??
+        raw.wuid ??
+        raw.number ??
+        raw.phone ??
+        "",
+    ),
+    profileName:
+      typeof raw.profileName === "string"
+        ? raw.profileName
+        : typeof raw.pushName === "string"
+          ? raw.pushName
+          : undefined,
+    profilePictureUrl:
+      typeof raw.profilePictureUrl === "string"
+        ? raw.profilePictureUrl
+        : typeof raw.profilePicUrl === "string"
+          ? raw.profilePicUrl
+          : null,
+    status: status || undefined,
+    integration: integrationLabel,
+  };
+}
+
+function extractInstances(payload: unknown): InstanceRow[] {
+  if (!payload) return [];
+
+  if (Array.isArray(payload)) {
+    const rows: InstanceRow[] = [];
+    for (const item of payload) {
+      const rec = asRecord(item);
+      if (!rec) continue;
+      if (rec.instance) {
+        const inner = asRecord(rec.instance);
+        if (inner) rows.push(normalizeInstanceRow(inner));
+      } else {
+        rows.push(normalizeInstanceRow(rec));
+      }
+    }
+    return rows.filter((r) => r.instanceName);
+  }
+
+  const root = asRecord(payload);
+  if (!root) return [];
+
+  if (Array.isArray(root.response)) {
+    return extractInstances(root.response);
+  }
+  if (Array.isArray(root.data)) {
+    return extractInstances(root.data);
+  }
+
+  if (root.instance) {
+    const inner = asRecord(root.instance);
+    if (inner) return [normalizeInstanceRow(inner)];
+  }
+
+  if (typeof root.instanceName === "string" || typeof root.name === "string") {
+    return [normalizeInstanceRow(root)];
+  }
+
+  return [];
+}
+
+function pickInstance(
+  rows: InstanceRow[],
+  instanceName: string,
+): InstanceRow | undefined {
+  const target = instanceName.trim().toLowerCase();
+  return (
+    rows.find((r) => r.instanceName.toLowerCase() === target) ??
+    rows.find((r) =>
+      r.instanceName.toLowerCase().includes(target),
+    ) ??
+    rows[0]
+  );
 }
 
 async function evolutionRequest<T>(
@@ -93,28 +269,6 @@ async function evolutionRequest<T>(
   return body as T;
 }
 
-function extractInstances(payload: unknown): InstanceRow[] {
-  if (!payload) return [];
-  if (Array.isArray(payload)) {
-    return payload.map((item) => {
-      if (item && typeof item === "object" && "instance" in item) {
-        return (item as { instance: InstanceRow }).instance;
-      }
-      return item as InstanceRow;
-    });
-  }
-  if (typeof payload === "object" && payload !== null) {
-    const p = payload as Record<string, unknown>;
-    if (Array.isArray(p.response)) {
-      return extractInstances(p.response);
-    }
-    if (p.instance && typeof p.instance === "object") {
-      return [p.instance as InstanceRow];
-    }
-  }
-  return [];
-}
-
 function toQrDataUrl(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") return null;
   const p = payload as Record<string, unknown>;
@@ -158,36 +312,49 @@ export async function getWhatsAppStatus(
   const name = settings.instanceName;
 
   try {
-    const [stateRes, instancesRes] = await Promise.all([
-      evolutionRequest<{ instance?: { state?: string } }>(
-        settings,
-        `/instance/connectionState/${encodeURIComponent(name)}`,
-      ).catch(() => ({ instance: undefined })),
+    const encoded = encodeURIComponent(name);
+    const [statePayload, filteredPayload, allPayload] = await Promise.all([
       evolutionRequest<unknown>(
         settings,
-        `/instance/fetchInstances?instanceName=${encodeURIComponent(name)}`,
+        `/instance/connectionState/${encoded}`,
       ).catch(() => null),
+      evolutionRequest<unknown>(
+        settings,
+        `/instance/fetchInstances?instanceName=${encoded}`,
+      ).catch(() => null),
+      evolutionRequest<unknown>(settings, `/instance/fetchInstances`).catch(
+        () => null,
+      ),
     ]);
 
-    const instances = extractInstances(instancesRes);
-    const row =
-      instances.find((i) => i.instanceName === name) ?? instances[0];
+    const fromFiltered = extractInstances(filteredPayload);
+    const fromAll = extractInstances(allPayload);
+    const instances = fromFiltered.length > 0 ? fromFiltered : fromAll;
+    const row = pickInstance(instances, name);
 
-    const stateRaw =
-      stateRes.instance?.state ?? row?.status ?? null;
-    const status = mapState(stateRaw ?? undefined);
+    const stateFromEndpoint = extractState(statePayload);
+    const stateFromRow = row?.status ?? null;
+    const stateRaw = stateFromEndpoint ?? stateFromRow ?? null;
+    let status = mapState(stateRaw ?? undefined);
+
+    if (status === "unknown" && row?.owner && parseOwnerPhone(row.owner)) {
+      status = "connected";
+    }
 
     return {
       configured: true,
-      instanceName: name,
+      instanceName: row?.instanceName ?? name,
       status,
       stateRaw,
       phone: parseOwnerPhone(row?.owner),
       profileName: row?.profileName ?? null,
       profilePictureUrl: row?.profilePictureUrl ?? null,
       webhookUrl: settings.webhookUrl,
-      integration: row?.integration?.integration ?? null,
-      error: null,
+      integration: row?.integration ?? null,
+      error:
+        status === "unknown" && !stateRaw
+          ? `Evolution não retornou estado para "${name}". Confira EVOLUTION_INSTANCE (nome exato no painel Evolution).`
+          : null,
     };
   } catch (err) {
     return {

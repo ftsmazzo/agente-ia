@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.1] - 2026-05-18
+
+### Fixed
+
+- WhatsApp no portal: parser Evolution compatível com v1/v2 (`connectionStatus`, `ownerJid`, `name`)
+- Status “Conectado” quando há número na instância mesmo se o campo de estado vier vazio
+
 ## [0.17.0] - 2026-05-18
 
 ### Added
