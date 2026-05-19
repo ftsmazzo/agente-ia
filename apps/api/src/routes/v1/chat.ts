@@ -14,6 +14,7 @@ import {
 } from "../../lib/prompt-bundle.js";
 import { claimMessage } from "../../services/idempotency.js";
 import {
+  buildEventMetadata,
   recordFailedMessage,
   recordMessageEvent,
 } from "../../services/message-events.js";
@@ -189,14 +190,17 @@ async function offerSlotsDeterministic(
     direction: "outbound",
     status: "queued",
     workflowStep: "chat",
-    metadata: {
-      reason: params.reason,
-      slots: slots.map((slot) => ({
-        option: slot.option,
-        startsAt: slot.startsAt,
-        label: slot.label,
-      })),
-    },
+    metadata: buildEventMetadata(
+      {
+        reason: params.reason,
+        slots: slots.map((slot) => ({
+          option: slot.option,
+          startsAt: slot.startsAt,
+          label: slot.label,
+        })),
+      },
+      replyText,
+    ),
   });
   return {
     shouldReply: true,
@@ -278,7 +282,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
           direction: "inbound",
           status: "duplicate",
           workflowStep: "chat",
-          metadata: { skipped: true },
+          metadata: buildEventMetadata({ skipped: true }, body.message),
         });
 
         return reply.send({
@@ -294,7 +298,10 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         direction: "inbound",
         status: "received",
         workflowStep: "chat",
-        metadata: { messageType: body.messageType },
+        metadata: buildEventMetadata(
+          { messageType: body.messageType },
+          body.message,
+        ),
       });
 
       const conversationState = await getConversationState(app.db, phone);
@@ -330,7 +337,10 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
           direction: "outbound",
           status: "queued",
           workflowStep: "chat",
-          metadata: { reason: "return_to_bot" },
+          metadata: buildEventMetadata(
+            { reason: "return_to_bot" },
+            replyText,
+          ),
         });
         return reply.send({
           shouldReply: true,
@@ -355,7 +365,10 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
           direction: "outbound",
           status: "queued",
           workflowStep: "chat",
-          metadata: { reason: "handoff_requested" },
+          metadata: buildEventMetadata(
+            { reason: "handoff_requested" },
+            replyText,
+          ),
         });
         return reply.send({
           shouldReply: true,
@@ -475,7 +488,10 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
           direction: "outbound",
           status: "queued",
           workflowStep: "chat",
-          metadata: { reason: "qualification_choice" },
+          metadata: buildEventMetadata(
+            { reason: "qualification_choice" },
+            replyText,
+          ),
         });
         return reply.send({
           shouldReply: true,
@@ -608,10 +624,13 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
               direction: "outbound",
               status: "queued",
               workflowStep: "chat",
-              metadata: {
-                reason: "appointment_booked",
-                appointment: booked,
-              },
+              metadata: buildEventMetadata(
+                {
+                  reason: "appointment_booked",
+                  appointment: booked,
+                },
+                replyText,
+              ),
             });
 
             return reply.send({
@@ -648,7 +667,10 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
             direction: "outbound",
             status: "queued",
             workflowStep: "chat",
-            metadata: { reason: "appointment_slot_unavailable" },
+            metadata: buildEventMetadata(
+              { reason: "appointment_slot_unavailable" },
+              replyText,
+            ),
           });
           return reply.send({
             shouldReply: true,
@@ -849,14 +871,17 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         direction: "outbound",
         status: "queued",
         workflowStep: "chat",
-        metadata: {
-          reason,
-          intent,
-          model: config.llm.model,
-          ...(ragMeta && { rag: ragMeta }),
-          ...(ragSkipReason && { ragSkipReason }),
-          ...(llmErrorDetail && { llmError: llmErrorDetail.slice(0, 500) }),
-        },
+        metadata: buildEventMetadata(
+          {
+            reason,
+            intent,
+            model: config.llm.model,
+            ...(ragMeta && { rag: ragMeta }),
+            ...(ragSkipReason && { ragSkipReason }),
+            ...(llmErrorDetail && { llmError: llmErrorDetail.slice(0, 500) }),
+          },
+          replyText,
+        ),
       });
 
       request.log.info(

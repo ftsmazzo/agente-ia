@@ -29,6 +29,8 @@ Gravado quando a mensagem indica interesse ou traz código `AP1234`:
 
 Cada mensagem recebida e cada resposta planejada — para suporte e debug.
 
+Desde a v0.15, `metadata.text` guarda o corpo da mensagem (cliente ou bot), visível no portal em **Conversas**.
+
 ## `lead_actions.metadata.qualification`
 
 Quando o cliente menciona na mensagem (extração determinística):

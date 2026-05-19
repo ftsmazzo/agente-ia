@@ -126,6 +126,32 @@ export type FailedMessage = {
   payloadPreview: string;
 };
 
+export type ConversationSummary = {
+  phone: string;
+  displayName: string | null;
+  mode: "bot" | "human" | "paused";
+  lastMessageAt: string | null;
+  preview: string | null;
+};
+
+export type ConversationEvent = {
+  id: number;
+  direction: "inbound" | "outbound";
+  status: string;
+  workflowStep: string;
+  text: string | null;
+  reason: string | null;
+  createdAt: string;
+};
+
+export type ConversationThread = {
+  phone: string;
+  displayName: string | null;
+  mode: "bot" | "human" | "paused";
+  events: ConversationEvent[];
+  redisHistory: Array<{ role: "user" | "assistant"; content: string }>;
+};
+
 function token(): string | null {
   return localStorage.getItem("portal_token");
 }
@@ -305,6 +331,24 @@ export const api = {
       `/v1/portal/scheduling/blackouts/${id}`,
       { method: "DELETE" },
     );
+  },
+  getConversations(params?: {
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }) {
+    const q = new URLSearchParams();
+    if (params?.search) q.set("search", params.search);
+    if (params?.limit) q.set("limit", String(params.limit));
+    if (params?.offset) q.set("offset", String(params.offset));
+    const qs = q.toString();
+    return request<{ items: ConversationSummary[]; total: number }>(
+      `/v1/portal/conversations${qs ? `?${qs}` : ""}`,
+    );
+  },
+  getConversation(phone: string) {
+    const encoded = encodeURIComponent(phone.replace(/\D/g, ""));
+    return request<ConversationThread>(`/v1/portal/conversations/${encoded}`);
   },
   getFailedMessages() {
     return request<{ items: FailedMessage[] }>(

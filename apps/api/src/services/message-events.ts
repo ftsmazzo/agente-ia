@@ -2,6 +2,19 @@ import type pg from "pg";
 
 export type MessageDirection = "inbound" | "outbound";
 
+const MAX_EVENT_TEXT = 8000;
+
+/** Metadados de auditoria; inclui texto da mensagem quando disponível. */
+export function buildEventMetadata(
+  base: Record<string, unknown> = {},
+  text?: string | null,
+): Record<string, unknown> {
+  const meta = { ...base };
+  const trimmed = text?.trim();
+  if (trimmed) meta.text = trimmed.slice(0, MAX_EVENT_TEXT);
+  return meta;
+}
+
 export async function recordMessageEvent(
   pool: pg.Pool,
   params: {

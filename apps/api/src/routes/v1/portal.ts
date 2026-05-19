@@ -29,6 +29,10 @@ import {
   listFailedMessages,
   resolveFailedMessage,
 } from "../../services/portal-ops-service.js";
+import {
+  getConversationThread,
+  listConversations,
+} from "../../services/portal-conversations-service.js";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -193,6 +197,31 @@ export async function portalRoutes(app: FastifyInstance): Promise<void> {
         'attachment; filename="catalogo.csv"',
       )
       .send(csv);
+  });
+
+  app.get("/v1/portal/conversations", async (request, reply) => {
+    const query = request.query as {
+      limit?: string;
+      offset?: string;
+      search?: string;
+    };
+    const result = await listConversations(app.db, {
+      limit: query.limit ? Number(query.limit) : 40,
+      offset: query.offset ? Number(query.offset) : 0,
+      search: query.search,
+    });
+    return reply.send(result);
+  });
+
+  app.get("/v1/portal/conversations/:phone", async (request, reply) => {
+    const phone = (request.params as { phone: string }).phone;
+    if (!phone?.replace(/\D/g, "")) {
+      return reply.status(400).send({ error: "invalid_phone" });
+    }
+    const thread = await getConversationThread(app.db, app.redis, phone, {
+      limit: 300,
+    });
+    return reply.send(thread);
   });
 
   app.get("/v1/portal/ops/failed-messages", async (request, reply) => {
