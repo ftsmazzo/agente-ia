@@ -390,7 +390,7 @@ export async function portalRoutes(app: FastifyInstance): Promise<void> {
       /* dashboard parcial ok */
     }
 
-    const health = await getDashboardHealthSummary(app.config, app.db, {
+    const health = await getDashboardHealthSummary(app.config, {
       catalogActive: propertiesActive,
       failedMessages,
     });

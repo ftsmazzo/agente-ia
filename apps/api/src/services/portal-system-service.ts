@@ -47,7 +47,6 @@ export type DashboardHealthSummary = {
 
 export async function getDashboardHealthSummary(
   config: AppConfig,
-  pool: pg.Pool,
   counts: { catalogActive: number; failedMessages: number },
 ): Promise<DashboardHealthSummary> {
   const alerts: string[] = [];
