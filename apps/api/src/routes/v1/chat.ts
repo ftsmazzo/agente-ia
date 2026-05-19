@@ -57,6 +57,7 @@ import {
   botMessageInvitesVisit,
   botMessageOfferedNumberedSlots,
   looksLikeSlotChoice,
+  looksLikeUnmatchedSchedulePick,
   isAwaitingBookingFollowUp,
   resolveQualificationChoice,
   wantsReschedule,
@@ -182,7 +183,9 @@ async function offerSlotsDeterministic(
   },
 ): Promise<ChatResponse & { shouldReply: true; replyText: string }> {
   const slots = await listAvailableSlots(app.db, { limit: 5 });
-  let replyText = buildSlotOfferReply(slots);
+  let replyText = buildSlotOfferReply(slots, {
+    repeatOffer: params.reason === "appointment_slots_repeat",
+  });
   if (params.slotMismatch) {
     replyText += `\n\nNão encontrei esse horário na agenda. Pode escolher uma das opções acima?`;
   }
@@ -1029,6 +1032,9 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
           slotChoiceMessage ||
           lastBotOfferedSlots
         ) {
+          const slotMismatch =
+            !selectedSlot &&
+            looksLikeUnmatchedSchedulePick(body.message);
           return reply.send(
             await offerSlotsDeterministic(app, {
               phone,
@@ -1036,8 +1042,10 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
               message: body.message,
               propertyCode:
                 extracted.propertyCode ?? schedulingState?.propertyCode,
-              reason: "appointment_slot_retry",
-              slotMismatch: true,
+              reason: slotMismatch
+                ? "appointment_slot_retry"
+                : "appointment_slots_repeat",
+              slotMismatch,
             }),
           );
         }
@@ -1074,7 +1082,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
             reason: slotChoiceMessage
               ? "scheduling_funnel_slot_retry"
               : "scheduling_funnel_guard",
-            slotMismatch: slotChoiceMessage || lastBotOfferedSlots,
+            slotMismatch: false,
           }),
         );
       }

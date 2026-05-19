@@ -575,7 +575,10 @@ Use somente estes horários. Se o cliente pedir outro horário, ofereça os hor�
 [/AGENDA DO SISTEMA]`;
 }
 
-export function buildSlotOfferReply(slots: AppointmentSlot[]): string {
+export function buildSlotOfferReply(
+  slots: AppointmentSlot[],
+  options?: { repeatOffer?: boolean },
+): string {
   if (!slots.length) {
     return "Quero muito te receber na imobiliária, mas não encontrei horários livres nos próximos dias. Vou verificar com a equipe e já te retorno com opções.";
   }
@@ -584,7 +587,10 @@ export function buildSlotOfferReply(slots: AppointmentSlot[]): string {
     .slice(0, 5)
     .map((slot) => `${slot.option}. ${slot.label}`)
     .join("\n");
-  return `Perfeito, vamos agendar sua visita na imobiliária.\n\nTenho estes horários disponíveis:\n${list}\n\nQual deles fica melhor para você?`;
+  const intro = options?.repeatOffer
+    ? "Estes são os horários disponíveis agora:"
+    : "Perfeito, vamos agendar sua visita na imobiliária.\n\nTenho estes horários disponíveis:";
+  return `${intro}\n${list}\n\nQual deles fica melhor para você?`;
 }
 
 export function buildRescheduleSlotOfferReply(

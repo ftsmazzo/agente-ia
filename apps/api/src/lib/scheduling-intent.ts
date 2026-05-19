@@ -81,7 +81,24 @@ export function acceptsVisitAfterInvite(message: string): boolean {
   return false;
 }
 
-/** Cliente escolheu opção numerada da lista (ex.: "opção 3", "3", "a 2"). */
+/** Cliente parece ter indicado horário/opção que não bateu com a agenda. */
+export function looksLikeUnmatchedSchedulePick(message: string): boolean {
+  if (looksLikeSlotChoice(message)) return true;
+  const t = normalize(message.trim());
+  if (!t || t.length > 80) return false;
+  if (acceptsVisitAffirmative(message) || acceptsVisitAfterInvite(message)) {
+    return false;
+  }
+  return (
+    /\b(as|às)\s*\d{1,2}(:\d{2})?\b/.test(t) ||
+    /\b\d{1,2}\s*h\b/.test(t) ||
+    /\b\d{1,2}:\d{2}\b/.test(t) ||
+    /\b(segunda|terca|terça|quarta|quinta|sexta|sabado|sábado|domingo)\b/.test(
+      t,
+    )
+  );
+}
+
 export function looksLikeSlotChoice(message: string): boolean {
   const t = normalize(message.trim());
   if (!t || t.length > 64) return false;
