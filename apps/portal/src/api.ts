@@ -264,6 +264,14 @@ async function request<T>(
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    if (data.error === "validation_error" && data.details?.fieldErrors) {
+      const fields = Object.entries(
+        data.details.fieldErrors as Record<string, string[]>,
+      )
+        .map(([k, v]) => `${k}: ${v.join(", ")}`)
+        .join("; ");
+      throw new Error(fields || "Dados inválidos");
+    }
     const msg =
       typeof data.message === "string"
         ? data.message
@@ -296,9 +304,19 @@ export const api = {
     return request<SchedulingSettings>("/v1/portal/scheduling/settings");
   },
   patchScheduling(body: Partial<SchedulingSettings>) {
+    const payload = { ...body };
+    if (payload.workStart) {
+      payload.workStart = payload.workStart.slice(0, 5);
+    }
+    if (payload.workEnd) {
+      payload.workEnd = payload.workEnd.slice(0, 5);
+    }
+    if (payload.mapsUrl === "") {
+      payload.mapsUrl = null;
+    }
     return request<SchedulingSettings>("/v1/portal/scheduling/settings", {
       method: "PATCH",
-      body: JSON.stringify(body),
+      body: JSON.stringify(payload),
     });
   },
   getAgentConfig() {

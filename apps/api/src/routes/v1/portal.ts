@@ -59,11 +59,16 @@ const createUserSchema = z.object({
   name: z.string().min(2).max(120),
 });
 
+const timeFieldSchema = z
+  .string()
+  .regex(/^\d{2}:\d{2}(:\d{2})?$/)
+  .transform((v) => v.slice(0, 5));
+
 const settingsPatchSchema = z.object({
   timezone: z.string().max(64).optional(),
   weekdays: z.array(z.number().int().min(0).max(6)).min(1).max(7).optional(),
-  workStart: z.string().regex(/^\d{2}:\d{2}$/).optional(),
-  workEnd: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  workStart: timeFieldSchema.optional(),
+  workEnd: timeFieldSchema.optional(),
   slotMinutes: z.number().int().min(15).max(240).optional(),
   durationMinutes: z.number().int().min(15).max(240).optional(),
   minNoticeMinutes: z.number().int().min(0).max(10080).optional(),
@@ -71,9 +76,9 @@ const settingsPatchSchema = z.object({
   location: z.string().max(500).optional(),
   address: z.string().max(1000).nullable().optional(),
   mapsUrl: z
-    .union([z.string().url().max(2000), z.literal("")])
-    .nullable()
-    .optional(),
+    .union([z.string().url().max(2000), z.literal(""), z.null()])
+    .optional()
+    .transform((v) => (v === "" || v === undefined ? null : v)),
   active: z.boolean().optional(),
 });
 
