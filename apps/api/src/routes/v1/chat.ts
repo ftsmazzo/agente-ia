@@ -1104,11 +1104,22 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
 
       const history = historyEarly;
       let schedulingBlock: string | undefined;
+      const schedulingConversationActive =
+        schedulingState?.status === "awaiting_accept" ||
+        schedulingState?.status === "awaiting_slot" ||
+        schedulingState?.status === "awaiting_reschedule" ||
+        schedulingState?.status === "awaiting_qualification_choice" ||
+        schedulingState?.visitPrompted === true;
+      const userAskedVisitOrSchedule =
+        wantsScheduling(body.message) ||
+        /\b(visitar|visita|agendar|conhecer pessoalmente|ver (?:o )?im[oó]vel)\b/i.test(
+          body.message,
+        );
       if (
         config.features.scheduling &&
         !mustBlockLlmForScheduling &&
-        schedulingState?.status !== "awaiting_slot" &&
-        schedulingState?.status !== "qualification_closed"
+        schedulingState?.status !== "qualification_closed" &&
+        (schedulingConversationActive || userAskedVisitOrSchedule)
       ) {
         const slots = await listAvailableSlots(app.db, { limit: 5 });
         schedulingBlock = formatSlotsForPrompt(slots);

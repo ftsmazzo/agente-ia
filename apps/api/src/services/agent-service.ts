@@ -36,6 +36,15 @@ function buildRuntimeContext(
       lines.push(
         "- Use APENAS dados de imóveis marcados como [DADOS DO SISTEMA] abaixo. Se não houver bloco, diga que está verificando e qualifique interesse.",
       );
+      lines.push(
+        "- **Primeira resposta sobre este código:** apresente o imóvel com tom humano (2–3 destaques reais do sistema), responda o que ele já perguntou e **convide a continuar a conversa** — ex.: o que mais quer saber, se compara com outro perfil, o que é prioridade (local, valor, metragem).",
+      );
+      lines.push(
+        "- **Não** empurre visita/agenda na primeira mensagem só porque ele citou o código. Convite à sede só se ele pedir visita, disser que gostou/quero ver, ou na **segunda** troca clara de interesse neste imóvel.",
+      );
+      lines.push(
+        "- Objeções (caro, longe, dúvida): acolha, use só fatos do sistema, não discuta financiamento até visita confirmada.",
+      );
       break;
     case "property_by_criteria":
       lines.push(
@@ -136,7 +145,7 @@ export async function generateAgentReply(params: {
         "Proibido: títulos de catálogo, tabelas, bullets com 'código — valor — bairro' em sequência mecânica.",
         "É proibido dizer que não há imóveis no bairro se o bloco listar opções.",
         "Não confirme quartos, banheiros ou vagas que o cliente não disse na mensagem atual.",
-        "Convite à visita na imobiliária: leve, no final, sem pressão — sem perguntas financeiras.",
+        "Convite à visita: só se já houve troca sobre o imóvel ou o cliente demonstrou interesse; leve, sem pressão.",
       );
     }
   }
