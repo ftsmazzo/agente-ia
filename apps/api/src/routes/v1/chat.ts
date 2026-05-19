@@ -60,6 +60,7 @@ import {
   looksLikeUnmatchedSchedulePick,
   isAwaitingBookingFollowUp,
   resolveQualificationChoice,
+  resolveVisitConfirmationReply,
   wantsReschedule,
 } from "../../lib/scheduling-intent.js";
 import {
@@ -93,6 +94,7 @@ type SchedulingConversationState = {
     | "awaiting_accept"
     | "awaiting_slot"
     | "awaiting_reschedule"
+    | "awaiting_visit_confirmation"
     | "booked"
     | "awaiting_qualification_choice"
     | "qualification_closed";
@@ -520,6 +522,103 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
           conversationMode: "bot",
           reason: "qualification_choice",
         } satisfies ChatResponse);
+      }
+
+      if (
+        config.features.scheduling &&
+        schedulingState?.status === "awaiting_visit_confirmation" &&
+        schedulingState.appointmentId
+      ) {
+        const choice = resolveVisitConfirmationReply(body.message);
+        if (choice) {
+          const appt = await getAppointment(
+            app.db,
+            schedulingState.appointmentId,
+          );
+          if (appt && appt.phone === phone) {
+            const label = formatSlotLabel(appt.startsAt, appt.timezone);
+            const who = firstName(contactName);
+            const greeting = who ? `${who}, ` : "";
+
+            if (choice === "confirm") {
+              await updateAppointment(app.db, appt.id, {
+                confirmationStatus: "confirmed",
+                status: "confirmed",
+              });
+              const replyText = `${greeting}perfeito! Sua visita está confirmada para *${label}* na ${config.brand.brandName}. Até lá!`;
+              await mergeConversationMetadata(app.db, phone, {
+                scheduling: {
+                  ...schedulingState,
+                  status: "booked",
+                  startsAt: appt.startsAt,
+                  updatedAt: new Date().toISOString(),
+                },
+              });
+              await appendHistory(
+                app.redis,
+                phone,
+                body.message,
+                replyText,
+                config.llm.maxHistoryTurns,
+              );
+              await recordMessageEvent(app.db, {
+                externalId: `${body.messageId}:out`,
+                phone,
+                direction: "outbound",
+                status: "queued",
+                workflowStep: "chat",
+                metadata: buildEventMetadata(
+                  { reason: "visit_reminder_confirmed" },
+                  replyText,
+                ),
+              });
+              return reply.send({
+                shouldReply: true,
+                replyText,
+                conversationMode: "bot",
+                reason: "visit_reminder_confirmed",
+              } satisfies ChatResponse);
+            }
+
+            await updateAppointment(app.db, appt.id, {
+              status: "cancelled",
+              confirmationStatus: "declined",
+            });
+            const replyText = `${greeting}sem problema — cancelei sua visita de *${label}*. O horário voltou a ficar disponível. Se quiser remarcar, é só avisar.`;
+            await mergeConversationMetadata(app.db, phone, {
+              scheduling: {
+                status: "awaiting_accept",
+                visitPrompted: true,
+                propertyCode: schedulingState.propertyCode ?? appt.propertyCode,
+                updatedAt: new Date().toISOString(),
+              },
+            });
+            await appendHistory(
+              app.redis,
+              phone,
+              body.message,
+              replyText,
+              config.llm.maxHistoryTurns,
+            );
+            await recordMessageEvent(app.db, {
+              externalId: `${body.messageId}:out`,
+              phone,
+              direction: "outbound",
+              status: "queued",
+              workflowStep: "chat",
+              metadata: buildEventMetadata(
+                { reason: "visit_reminder_declined" },
+                replyText,
+              ),
+            });
+            return reply.send({
+              shouldReply: true,
+              replyText,
+              conversationMode: "bot",
+              reason: "visit_reminder_declined",
+            } satisfies ChatResponse);
+          }
+        }
       }
 
       const historyEarly = await loadHistory(

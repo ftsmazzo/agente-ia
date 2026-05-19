@@ -1,5 +1,7 @@
 import type pg from "pg";
 import type { BrandConfig } from "@realty/shared";
+import { buildClientVisitReminderText } from "../lib/appointment-reminder.js";
+import { mergeConversationMetadata } from "./conversation-state.js";
 import { formatSlotLabel } from "./scheduling-service.js";
 
 export type OpsNotificationKind =
@@ -12,6 +14,8 @@ export type OpsNotificationMessage = {
   id: string;
   kind: OpsNotificationKind;
   text: string;
+  /** Dígitos do WhatsApp (Evolution). Lembretes de visita vão ao cliente. */
+  recipientPhone?: string;
   referenceId?: number;
 };
 
@@ -37,9 +41,6 @@ export async function runOpsNotificationTick(
   options?: { portalBaseUrl?: string | null },
 ): Promise<{ messages: OpsNotificationMessage[] }> {
   const messages: OpsNotificationMessage[] = [];
-  const portalHint = options?.portalBaseUrl
-    ? `\nPortal: ${options.portalBaseUrl.replace(/\/$/, "")}/agenda`
-    : "\nAbra o portal na seção Agenda para confirmar.";
 
   type DueAppointmentRow = {
     id: number;
@@ -87,25 +88,23 @@ export async function runOpsNotificationTick(
 
   for (const row of dueAppointments) {
     const when = formatSlotLabel(row.starts_at, row.timezone);
-    const who = row.customer_name?.trim() || formatPhone(row.phone);
-    const property = row.property_code ? ` · imóvel ${row.property_code}` : "";
     const soon = row.reminder_kind === "soon";
-    const text = [
-      `📅 *Lembrete ${brand.brandName}*`,
-      "",
-      soon
-        ? `Visita em breve: *${when}*`
-        : `Visita em ~24h: *${when}*`,
-      `Cliente: ${who}${property}`,
-      `Local: ${row.location}`,
-      "",
-      `Confirme no portal se a visita está mantida.${portalHint}`,
-    ].join("\n");
+    const firstName = row.customer_name?.trim().split(/\s+/)[0] ?? null;
+    const clientDigits = row.phone.replace(/\D/g, "");
+    const text = buildClientVisitReminderText({
+      brandName: brand.brandName,
+      firstName,
+      whenLabel: when,
+      location: row.location,
+      propertyCode: row.property_code,
+      soon,
+    });
 
     messages.push({
       id: `appointment_reminder:${row.id}`,
       kind: soon ? "appointment_reminder_soon" : "appointment_reminder_24h",
       text,
+      recipientPhone: clientDigits,
       referenceId: row.id,
     });
   }
@@ -189,6 +188,17 @@ export async function runOpsNotificationTick(
          WHERE id = ANY($1::bigint[])`,
         [appointmentIds],
       );
+      for (const row of dueAppointments) {
+        await mergeConversationMetadata(pool, row.phone, {
+          scheduling: {
+            status: "awaiting_visit_confirmation",
+            appointmentId: row.id,
+            startsAt: row.starts_at.toISOString(),
+            propertyCode: row.property_code,
+            updatedAt: new Date().toISOString(),
+          },
+        });
+      }
     }
     if (failedIds.length > 0) {
       await pool.query(

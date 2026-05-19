@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.0] - 2026-05-19
+
+### Changed
+
+- Lembretes de visita vão ao **cliente** (WhatsApp); resposta SIM/NÃO confirma ou cancela e libera o horário
+- Alertas de erro do sistema continuam no número operacional (`OPS_NOTIFY_PHONE`)
+- **Vagas por horário** (`slotCapacity` em `appointment_settings`): até N agendamentos no mesmo horário (portal Agenda)
+
+### Added
+
+- Migração `008_slot_capacity.sql` — remove índice único 1:1 por slot
+
 ## [0.21.0] - 2026-05-19
 
 ### Changed

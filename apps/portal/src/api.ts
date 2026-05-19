@@ -68,6 +68,7 @@ export type SchedulingSettings = {
   durationMinutes: number;
   minNoticeMinutes: number;
   horizonDays: number;
+  slotCapacity: number;
   location: string;
   address: string | null;
   mapsUrl: string | null;

@@ -5,6 +5,7 @@ import {
   acceptsVisitAfterInvite,
   looksLikeSlotChoice,
   botMessageOfferedNumberedSlots,
+  resolveVisitConfirmationReply,
 } from "../dist/lib/scheduling-intent.js";
 import { findRequestedSlot } from "../dist/services/scheduling-service.js";
 
@@ -101,5 +102,19 @@ Qual número funciona melhor?`;
 
   it("detecta lista numerada da LLM", () => {
     assert.equal(botMessageOfferedNumberedSlots(sample), true);
+  });
+});
+
+describe("resolveVisitConfirmationReply", () => {
+  it("confirma com sim", () => {
+    assert.equal(resolveVisitConfirmationReply("sim"), "confirm");
+    assert.equal(resolveVisitConfirmationReply("Confirmo"), "confirm");
+  });
+  it("cancela com não", () => {
+    assert.equal(resolveVisitConfirmationReply("não"), "decline");
+    assert.equal(resolveVisitConfirmationReply("cancelar"), "decline");
+  });
+  it("ignora mensagem ambígua", () => {
+    assert.equal(resolveVisitConfirmationReply("qual o endereço?"), null);
   });
 });

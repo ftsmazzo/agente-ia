@@ -21,6 +21,8 @@ export type SchedulingSettings = {
   durationMinutes: number;
   minNoticeMinutes: number;
   horizonDays: number;
+  /** Máximo de agendamentos ativos no mesmo horário (início). Default 1. */
+  slotCapacity: number;
   location: string;
   address: string | null;
   mapsUrl: string | null;
@@ -207,11 +209,28 @@ export type SchedulingSettingsPatch = Partial<{
   durationMinutes: number;
   minNoticeMinutes: number;
   horizonDays: number;
+  slotCapacity: number;
   location: string;
   address: string | null;
   mapsUrl: string | null;
   active: boolean;
 }>;
+
+async function countActiveAtSlot(
+  pool: pg.Pool,
+  startsAt: string,
+  excludeAppointmentId?: number,
+): Promise<number> {
+  const { rows } = await pool.query<{ count: string }>(
+    `SELECT COUNT(*)::text AS count
+     FROM app.appointments
+     WHERE status = ANY($1::text[])
+       AND starts_at = $2::timestamptz
+       AND ($3::bigint IS NULL OR id <> $3)`,
+    [ACTIVE_STATUSES, startsAt, excludeAppointmentId ?? null],
+  );
+  return Number(rows[0]?.count ?? 0);
+}
 
 export async function updateSchedulingSettings(
   pool: pg.Pool,
@@ -228,6 +247,7 @@ export async function updateSchedulingSettings(
     durationMinutes: patch.durationMinutes ?? current.durationMinutes,
     minNoticeMinutes: patch.minNoticeMinutes ?? current.minNoticeMinutes,
     horizonDays: patch.horizonDays ?? current.horizonDays,
+    slotCapacity: patch.slotCapacity ?? current.slotCapacity,
     location: patch.location ?? current.location,
     address:
       patch.address !== undefined ? patch.address : current.address,
@@ -245,10 +265,11 @@ export async function updateSchedulingSettings(
          duration_minutes = $6,
          min_notice_minutes = $7,
          horizon_days = $8,
-         location = $9,
-         address = $10,
-         maps_url = $11,
-         active = $12,
+         slot_capacity = $9,
+         location = $10,
+         address = $11,
+         maps_url = $12,
+         active = $13,
          updated_at = NOW()
      WHERE id = 1`,
     [
@@ -260,6 +281,7 @@ export async function updateSchedulingSettings(
       next.durationMinutes,
       next.minNoticeMinutes,
       next.horizonDays,
+      next.slotCapacity,
       next.location,
       next.address,
       next.mapsUrl,
@@ -282,14 +304,15 @@ export async function getSchedulingSettings(
     duration_minutes: number;
     min_notice_minutes: number;
     horizon_days: number;
+    slot_capacity: number | null;
     location: string;
     address: string | null;
     maps_url: string | null;
     active: boolean;
   }>(
     `SELECT timezone, weekdays, work_start, work_end, slot_minutes,
-            duration_minutes, min_notice_minutes, horizon_days, location,
-            address, maps_url, active
+            duration_minutes, min_notice_minutes, horizon_days,
+            slot_capacity, location, address, maps_url, active
      FROM app.appointment_settings WHERE id = 1`,
   );
 
@@ -303,6 +326,10 @@ export async function getSchedulingSettings(
     durationMinutes: row?.duration_minutes ?? 60,
     minNoticeMinutes: row?.min_notice_minutes ?? 120,
     horizonDays: row?.horizon_days ?? 7,
+    slotCapacity: Math.min(
+      50,
+      Math.max(1, row?.slot_capacity ?? 1),
+    ),
     location: row?.location ?? "Sede da imobiliária",
     address: row?.address ?? null,
     mapsUrl: row?.maps_url ?? null,
@@ -357,14 +384,21 @@ export async function listAvailableSlots(
 
   const first = candidates[0].start;
   const last = candidates[candidates.length - 1].end;
-  const { rows } = await pool.query<{ starts_at: Date }>(
-    `SELECT starts_at FROM app.appointments
+  const { rows: countRows } = await pool.query<{
+    starts_at: Date;
+    count: string;
+  }>(
+    `SELECT starts_at, COUNT(*)::text AS count
+     FROM app.appointments
      WHERE status = ANY($1::text[])
        AND starts_at >= $2
-       AND starts_at < $3`,
+       AND starts_at < $3
+     GROUP BY starts_at`,
     [ACTIVE_STATUSES, first, last],
   );
-  const booked = new Set(rows.map((row) => row.starts_at.toISOString()));
+  const bookedCount = new Map(
+    countRows.map((row) => [row.starts_at.toISOString(), Number(row.count)]),
+  );
 
   const { rows: blackoutRows } = await pool.query<{
     starts_at: Date;
@@ -381,11 +415,14 @@ export async function listAvailableSlots(
     );
 
   return candidates
-    .filter(
-      (slot) =>
-        !booked.has(slot.start.toISOString()) &&
-        !slotBlockedByBlackout(slot.start, slot.end),
-    )
+    .filter((slot) => {
+      const key = slot.start.toISOString();
+      const used = bookedCount.get(key) ?? 0;
+      return (
+        used < settings.slotCapacity &&
+        !slotBlockedByBlackout(slot.start, slot.end)
+      );
+    })
     .slice(0, limit)
     .map((slot, index) => ({
       startsAt: slot.start.toISOString(),
@@ -669,16 +706,30 @@ export async function bookAppointment(
     return { ok: false, reason: "slot_unavailable", slots: available };
   }
 
-  await pool.query(
-    `INSERT INTO app.contacts (phone, display_name, updated_at)
-     VALUES ($1, $2, NOW())
-     ON CONFLICT (phone) DO UPDATE SET
-       display_name = COALESCE(EXCLUDED.display_name, app.contacts.display_name),
-       updated_at = NOW()`,
-    [input.phone, input.customerName ?? null],
-  );
-
+  await pool.query("BEGIN");
   try {
+    await pool.query(
+      `SELECT 1 FROM app.appointment_settings WHERE id = 1 FOR UPDATE`,
+    );
+    const atSlot = await countActiveAtSlot(pool, selected.startsAt);
+    if (atSlot >= settings.slotCapacity) {
+      await pool.query("ROLLBACK");
+      const slots = await listAvailableSlots(pool, {
+        days: settings.horizonDays,
+        limit: 100,
+      });
+      return { ok: false, reason: "slot_unavailable", slots };
+    }
+
+    await pool.query(
+      `INSERT INTO app.contacts (phone, display_name, updated_at)
+       VALUES ($1, $2, NOW())
+       ON CONFLICT (phone) DO UPDATE SET
+         display_name = COALESCE(EXCLUDED.display_name, app.contacts.display_name),
+         updated_at = NOW()`,
+      [input.phone, input.customerName ?? null],
+    );
+
     const { rows } = await pool.query<AppointmentRow>(
       `INSERT INTO app.appointments (
          phone, customer_name, property_code, starts_at, ends_at, timezone,
@@ -698,15 +749,10 @@ export async function bookAppointment(
         JSON.stringify(input.metadata ?? {}),
       ],
     );
+    await pool.query("COMMIT");
     return { ok: true, appointment: toAppointment(rows[0]) };
   } catch (err) {
-    if ((err as { code?: string }).code === "23505") {
-      const slots = await listAvailableSlots(pool, {
-        days: settings.horizonDays,
-        limit: 100,
-      });
-      return { ok: false, reason: "slot_unavailable", slots };
-    }
+    await pool.query("ROLLBACK");
     throw err;
   }
 }
@@ -794,6 +840,15 @@ export async function updateAppointment(
     if (!selected) {
       return { ok: false, reason: "slot_unavailable", slots: available };
     }
+    const settings = await getSchedulingSettings(pool);
+    const atSlot = await countActiveAtSlot(
+      pool,
+      selected.startsAt,
+      existing.id,
+    );
+    if (atSlot >= settings.slotCapacity) {
+      return { ok: false, reason: "slot_unavailable", slots: available };
+    }
     startsAt = selected.startsAt;
     endsAt = selected.endsAt;
   }
@@ -825,10 +880,6 @@ export async function updateAppointment(
     );
     return { ok: true, appointment: rows[0] ? toAppointment(rows[0]) : null };
   } catch (err) {
-    if ((err as { code?: string }).code === "23505") {
-      const slots = await listAvailableSlots(pool, { limit: 100 });
-      return { ok: false, reason: "slot_unavailable", slots };
-    }
     throw err;
   }
 }

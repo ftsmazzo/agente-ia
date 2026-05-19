@@ -23,7 +23,11 @@ A agenda oficial da SofIA fica no Postgres. Não depende de Cal.com, Google Clou
 | Janela ofertada | 7 dias |
 | Local | `Sede da imobiliária` |
 
-Esses valores ficam em `app.appointment_settings` e serão editáveis pela futura UI administrativa.
+Esses valores ficam em `app.appointment_settings` e são editáveis no **Portal → Agenda** (horário comercial).
+
+### Vagas por horário (`slotCapacity`)
+
+Por padrão **1** agendamento por horário (imobiliária: um cliente por slot). Para barbearia, clínica ou equipe com vários atendentes no mesmo horário, defina **Vagas por horário** (ex.: `3` = até três visitas às 10:00). O sistema conta agendamentos ativos (`scheduled` / `confirmed`) no mesmo `starts_at` e só bloqueia quando atingir o limite.
 
 ## Endpoints
 
@@ -108,20 +112,22 @@ A tela **Agenda** no portal lista visitas (próximas, pendentes de confirmação
 
 ## Lembretes e alertas (n8n)
 
-O workflow `06-ops-notifications.json` roda a cada **30 minutos**, chama `POST /v1/ops/notifications/tick` e envia WhatsApp para o número operacional quando houver:
+O workflow `06-ops-notifications.json` roda a cada **30 minutos**, chama `POST /v1/ops/notifications/tick` e envia WhatsApp quando houver:
 
-| Tipo | Quando |
-|------|--------|
-| Lembrete ~24h | Visita daqui a **20–28 horas**, `confirmation_status = pending` |
-| Lembrete “em breve” | Visita daqui a **1–20 horas** (agendou com pouca antecedência), só 1x |
-| Erro novo | Registro em `app.failed_messages` ainda não alertado |
-| Resumo | 10+ falhas não resolvidas (no máximo 1x a cada 12h) |
+| Tipo | Destino | Quando |
+|------|---------|--------|
+| Lembrete ~24h | **Cliente** (telefone da visita) | Visita daqui a **20–28 h**, `confirmation_status = pending` |
+| Lembrete “em breve” | **Cliente** | Visita daqui a **1–20 h** (agendou com pouca antecedência), só 1x |
+| Erro novo | Operacional (`OPS_NOTIFY_PHONE`) | `app.failed_messages` ainda não alertado |
+| Resumo | Operacional | 10+ falhas não resolvidas (no máximo 1x a cada 12h) |
+
+O cliente recebe: *“Responda SIM para confirmar ou NÃO para cancelar e liberar o horário.”* A SofIA trata a resposta no `/v1/chat` (confirma ou cancela a visita automaticamente).
 
 Variáveis no n8n:
 
 | Variável | Descrição |
 |----------|-----------|
-| `OPS_NOTIFY_PHONE` | Destino dos lembretes/alertas (opcional: usa `APPOINTMENT_NOTIFY_PHONE`) |
+| `OPS_NOTIFY_PHONE` | Destino dos **alertas de erro** (opcional: usa `APPOINTMENT_NOTIFY_PHONE`) |
 | `PORTAL_PUBLIC_URL` | URL do portal (link no lembrete de confirmação) |
 | `PUBLIC_AGENT_API_URL` | URL da API (tick) |
 | `AGENT_API_KEY` | Igual `API_INTERNAL_KEY` |

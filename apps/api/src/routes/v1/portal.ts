@@ -73,6 +73,7 @@ const settingsPatchSchema = z.object({
   durationMinutes: z.number().int().min(15).max(240).optional(),
   minNoticeMinutes: z.number().int().min(0).max(10080).optional(),
   horizonDays: z.number().int().min(1).max(60).optional(),
+  slotCapacity: z.number().int().min(1).max(50).optional(),
   location: z.string().max(500).optional(),
   address: z.string().max(1000).nullable().optional(),
   mapsUrl: z

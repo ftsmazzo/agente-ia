@@ -158,6 +158,34 @@ export function isInSchedulingFunnel(params: {
   return false;
 }
 
+/** Resposta ao lembrete ~24h (SIM confirma, NÃO cancela e libera o horário). */
+export function resolveVisitConfirmationReply(
+  message: string,
+): "confirm" | "decline" | null {
+  const t = message.trim().toLowerCase();
+  if (!t || t.length > 120) return null;
+
+  if (
+    /^(sim|s|confirmo|confirmado|pode ser|mant[eé]m|estarei|vou sim|ok|beleza|combinado|fechado)\b/i.test(
+      t,
+    ) ||
+    /\bconfirmo\b/i.test(t)
+  ) {
+    return "confirm";
+  }
+
+  if (
+    /^(n[aã]o|nao|n)\b/i.test(t) ||
+    /\b(cancelar|desmarcar|liberar|n[aã]o vou|nao vou|impedido|desisti)\b/i.test(
+      t,
+    )
+  ) {
+    return "decline";
+  }
+
+  return null;
+}
+
 /** Interpreta resposta após visita confirmada (na visita, antes, ou encerramento). */
 export function resolveQualificationChoice(
   message: string,

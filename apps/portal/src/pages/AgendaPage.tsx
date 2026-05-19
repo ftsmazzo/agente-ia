@@ -336,6 +336,24 @@ export function AgendaPage() {
               }
             />
           </div>
+          <div>
+            <label>Vagas por horário</label>
+            <input
+              type="number"
+              min={1}
+              max={50}
+              value={settings.slotCapacity ?? 1}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  slotCapacity: Number(e.target.value),
+                })
+              }
+            />
+            <p className="hint" style={{ marginTop: 4, fontSize: "0.85rem" }}>
+              Ex.: 3 = até três agendamentos no mesmo horário (barbearia, equipe).
+            </p>
+          </div>
         </div>
 
         <label>Local (texto para o cliente)</label>
