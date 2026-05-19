@@ -93,6 +93,29 @@ describe("findRequestedSlot", () => {
     const picked = findRequestedSlot("3", slots, "America/Sao_Paulo");
     assert.equal(picked?.option, 3);
   });
+
+  it("opção 5 e data por extenso (quarta 20/05 09:00)", () => {
+    const maySlots = [
+      {
+        option: 5,
+        startsAt: "2026-05-20T12:00:00.000Z",
+        endsAt: "2026-05-20T13:00:00.000Z",
+        label: "quarta-feira, 20/05 às 09:00",
+      },
+    ];
+    assert.equal(
+      findRequestedSlot("opção 5", maySlots, "America/Sao_Paulo")?.option,
+      5,
+    );
+    assert.equal(
+      findRequestedSlot(
+        "quarta-feira, 20/05 às 09:00",
+        maySlots,
+        "America/Sao_Paulo",
+      )?.option,
+      5,
+    );
+  });
 });
 
 describe("botMessageOfferedNumberedSlots", () => {

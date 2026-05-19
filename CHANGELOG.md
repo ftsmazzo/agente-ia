@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.4] - 2026-05-19
+
+### Fixed
+
+- Escolha de horário na remarcação: dias da semana ISO corrigidos (quarta=3); aceita “20/05 às 09:00” e “opção 5”
+- Remarcação: não repete o bloco inteiro; pede número ou horário de forma mais leve
+
 ## [0.22.3] - 2026-05-19
 
 ### Fixed

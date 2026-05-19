@@ -451,13 +451,14 @@ const ORDINAL_OPTIONS: Record<string, number> = {
   quinto: 5,
 };
 
+/** ISO 8601: segunda=1 … domingo=7 (igual a isoWeekday). */
 const WEEKDAY_KEYWORDS: Record<string, number> = {
   segunda: 1,
   terca: 2,
   terça: 2,
-  quarta: 4,
-  quinta: 5,
-  sexta: 6,
+  quarta: 3,
+  quinta: 4,
+  sexta: 5,
   sabado: 6,
   sábado: 6,
   domingo: 7,
@@ -538,6 +539,12 @@ export function findRequestedSlot(
     );
     if (!hasTime) return false;
 
+    const ddmm = `${String(local.day).padStart(2, "0")}/${String(
+      local.month,
+    ).padStart(2, "0")}`;
+    const ddmmDash = ddmm.replace("/", "-");
+    if (text.includes(ddmm) || text.includes(ddmmDash)) return true;
+
     if (text.includes("amanha")) {
       const tomorrow = addDaysToYmd(getZonedParts(new Date(), timeZone), 1);
       return (
@@ -556,28 +563,19 @@ export function findRequestedSlot(
       );
     }
 
-    if (mentionedWeekdays.length > 0) {
-      const slotWd = slotWeekdayInTimezone(slot.startsAt, timeZone);
-      if (!mentionedWeekdays.includes(slotWd)) return false;
+    const slotWd = slotWeekdayInTimezone(slot.startsAt, timeZone);
+    if (mentionedWeekdays.length > 0 && mentionedWeekdays.includes(slotWd)) {
+      return true;
     }
-
-    const ddmm = `${String(local.day).padStart(2, "0")}/${String(
-      local.month,
-    ).padStart(2, "0")}`;
-    if (text.includes(ddmm)) return true;
 
     const label = normalize(slot.label);
-    const weekdayPart = label.split(",")[0]?.trim() ?? "";
-    if (
-      weekdayPart.length > 2 &&
-      text.includes(weekdayPart.split("-")[0]?.trim() ?? "")
-    ) {
-      return true;
-    }
+    if (label.length > 8 && text.includes(label)) return true;
 
-    if (messageMentionsWeekday(text, slotWeekdayInTimezone(slot.startsAt, timeZone))) {
-      return true;
-    }
+    const weekdayPart = label.split(",")[0]?.trim() ?? "";
+    const weekdayStem = weekdayPart.split("-")[0]?.trim() ?? weekdayPart;
+    if (weekdayStem.length > 3 && text.includes(weekdayStem)) return true;
+
+    if (messageMentionsWeekday(text, slotWd)) return true;
 
     return false;
   });
@@ -634,6 +632,7 @@ export function buildRescheduleSlotOfferReply(
   slots: AppointmentSlot[],
   previousLabel: string,
   contactName?: string | null,
+  options?: { retry?: boolean },
 ): string {
   const who = contactName?.trim().split(/\s+/)[0];
   const greeting = who ? `${who}, ` : "";
@@ -644,7 +643,10 @@ export function buildRescheduleSlotOfferReply(
     .slice(0, 5)
     .map((slot) => `${slot.option}. ${slot.label}`)
     .join("\n");
-  return `${greeting}sem problema — sua visita estava prevista para *${previousLabel}*. Posso remarcar para:\n\n${list}\n\nQual opção fica melhor?`;
+  if (options?.retry) {
+    return `${greeting}não bati certinho esse horário com a lista. Pode responder só o *número* (ex.: 5) ou copiar uma linha abaixo:\n\n${list}`;
+  }
+  return `${greeting}claro! Sua visita estava em *${previousLabel}*. Estes horários estão livres para remarcar:\n\n${list}\n\nQual fica melhor — pode mandar o número ou o dia e horário.`;
 }
 
 /** Cancela outras visitas ativas do mesmo telefone (ex.: duplicata por bug). */

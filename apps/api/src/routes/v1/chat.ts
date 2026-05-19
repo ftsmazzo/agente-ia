@@ -657,7 +657,9 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         (rescheduleIntent ||
           isAwaitingReschedule ||
           (looksLikeSlotChoice(body.message) &&
-            schedulingState?.appointmentId != null))
+            schedulingState?.appointmentId != null) ||
+          (isAwaitingReschedule &&
+            looksLikeUnmatchedSchedulePick(body.message)))
       ) {
         const existing =
           (await getAppointment(app.db, rescheduleAppointmentId)) ??
@@ -667,11 +669,27 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
           existing.timezone,
         );
         const slots = await listAvailableSlots(app.db, { limit: 5 });
-        const selectedSlot = findRequestedSlot(
+        let selectedSlot = findRequestedSlot(
           body.message,
           slots,
           config.brand.timezone,
         );
+        if (
+          !selectedSlot &&
+          isAwaitingReschedule &&
+          schedulingState?.offeredSlots?.length
+        ) {
+          const offered = slots.filter((s) =>
+            schedulingState.offeredSlots!.includes(s.startsAt),
+          );
+          if (offered.length) {
+            selectedSlot = findRequestedSlot(
+              body.message,
+              offered,
+              config.brand.timezone,
+            );
+          }
+        }
 
         if (selectedSlot && selectedSlot.startsAt !== existing.startsAt) {
           const updated = await updateAppointment(app.db, existing.id, {
@@ -807,6 +825,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
           slots.slice(0, 5),
           previousLabel,
           contactName,
+          { retry: isAwaitingReschedule },
         );
         await mergeConversationMetadata(app.db, phone, {
           scheduling: {
