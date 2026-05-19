@@ -521,13 +521,6 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         (acceptsVisitAffirmative(body.message) ||
           (visitPrompted && acceptsVisitAfterInvite(body.message))) &&
         (visitPrompted || Boolean(qualificationPatch?.visit_requested));
-      const mustBlockLlmForScheduling =
-        isAwaitingSchedulingChoice ||
-        isAwaitingVisitAccept ||
-        lastBotOfferedSlots ||
-        slotChoiceMessage ||
-        bookingFollowUp ||
-        acceptsVisit;
       const isAwaitingSchedulingChoice =
         schedulingState?.status === "awaiting_slot";
       const isAwaitingVisitAccept =
@@ -541,6 +534,13 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
       const lastBotOfferedSlots = Boolean(
         lastBotReply && botMessageOfferedNumberedSlots(lastBotReply),
       );
+      const mustBlockLlmForScheduling =
+        isAwaitingSchedulingChoice ||
+        isAwaitingVisitAccept ||
+        lastBotOfferedSlots ||
+        slotChoiceMessage ||
+        bookingFollowUp ||
+        acceptsVisit;
       const shouldHandleScheduling =
         config.features.scheduling &&
         (isAwaitingSchedulingChoice ||
