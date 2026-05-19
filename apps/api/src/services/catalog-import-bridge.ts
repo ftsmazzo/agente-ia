@@ -11,6 +11,7 @@ export type CatalogImportResult = {
   upserted: number;
   activeCount: number;
   total: number;
+  mode: "replace" | "merge";
   columns: CatalogColumn[];
   itemCodeKey: string;
   titleKey: string | null;
@@ -44,6 +45,7 @@ type ImportCore = {
       itemCodeKey?: string;
       titleKey?: string | null;
       activeKey?: string | null;
+      mode?: "replace" | "merge";
     },
   ) => Promise<CatalogImportResult>;
 };
@@ -77,6 +79,7 @@ export async function importCatalogCsv(
     itemCodeKey?: string;
     titleKey?: string | null;
     activeKey?: string | null;
+    mode?: "replace" | "merge";
   },
 ): Promise<CatalogImportResult> {
   const core = await loadCore();

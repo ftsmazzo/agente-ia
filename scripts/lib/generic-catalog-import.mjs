@@ -235,7 +235,10 @@ export async function importCatalogCsv(db, buffer, options = {}) {
 
   const query = (sql, params) => db.query(sql, params);
 
-  await query(`DELETE FROM app.catalog_items`);
+  const mode = options.mode === "merge" ? "merge" : "replace";
+  if (mode === "replace") {
+    await query(`DELETE FROM app.catalog_items`);
+  }
 
   let upserted = 0;
   let activeCount = 0;
@@ -270,6 +273,13 @@ export async function importCatalogCsv(db, buffer, options = {}) {
     upserted += 1;
   }
 
+  const countRes = await query(
+    `SELECT COUNT(*)::text AS total, COUNT(*) FILTER (WHERE active)::text AS active
+     FROM app.catalog_items`,
+  );
+  const totalInDb = Number(countRes.rows[0]?.total ?? upserted);
+  const activeInDb = Number(countRes.rows[0]?.active ?? activeCount);
+
   await query(
     `UPDATE app.catalog_meta SET
        columns = $1::jsonb,
@@ -286,14 +296,15 @@ export async function importCatalogCsv(db, buffer, options = {}) {
       titleKey,
       activeKey,
       options.filename ?? null,
-      upserted,
+      totalInDb,
     ],
   );
 
   return {
     upserted,
-    activeCount,
-    total: upserted,
+    activeCount: activeInDb,
+    total: totalInDb,
+    mode,
     columns,
     itemCodeKey,
     titleKey,

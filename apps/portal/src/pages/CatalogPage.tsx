@@ -8,6 +8,7 @@ export function CatalogPage() {
   const [itemCodeKey, setItemCodeKey] = useState("");
   const [titleKey, setTitleKey] = useState("");
   const [activeKey, setActiveKey] = useState("");
+  const [mergeMode, setMergeMode] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,6 +22,25 @@ export function CatalogPage() {
     refresh().catch((e) => setError(e instanceof Error ? e.message : "Erro"));
   }, []);
 
+  function applySavedMapping(catalog: CatalogStats, p: CatalogPreview) {
+    const keys = new Set(p.columns.map((c) => c.key));
+    if (catalog.itemCodeKey && keys.has(catalog.itemCodeKey)) {
+      setItemCodeKey(catalog.itemCodeKey);
+    } else {
+      setItemCodeKey(p.itemCodeKey);
+    }
+    if (catalog.titleKey && keys.has(catalog.titleKey)) {
+      setTitleKey(catalog.titleKey);
+    } else {
+      setTitleKey(p.titleKey ?? "");
+    }
+    if (catalog.activeKey && keys.has(catalog.activeKey)) {
+      setActiveKey(catalog.activeKey);
+    } else {
+      setActiveKey(p.activeKey ?? "");
+    }
+  }
+
   async function onAnalyze(e: FormEvent) {
     e.preventDefault();
     if (!file) return;
@@ -31,9 +51,12 @@ export function CatalogPage() {
     try {
       const { preview: p } = await api.previewCatalog(file);
       setPreview(p);
-      setItemCodeKey(p.itemCodeKey);
-      setTitleKey(p.titleKey ?? "");
-      setActiveKey(p.activeKey ?? "");
+      if (stats) applySavedMapping(stats, p);
+      else {
+        setItemCodeKey(p.itemCodeKey);
+        setTitleKey(p.titleKey ?? "");
+        setActiveKey(p.activeKey ?? "");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha na leitura");
     } finally {
@@ -52,9 +75,12 @@ export function CatalogPage() {
         itemCodeKey,
         titleKey: titleKey || undefined,
         activeKey: activeKey || undefined,
+        mode: mergeMode ? "merge" : "replace",
       });
+      const modeLabel =
+        result.mode === "merge" ? "mesclado" : "substituído por completo";
       setMessage(
-        `Importado: ${result.upserted} itens (${result.activeCount} ativos). Colunas: ${result.columns.map((c) => c.key).join(", ")}`,
+        `Import ${modeLabel}: ${result.upserted} linha(s) processada(s), ${result.total} itens na base (${result.activeCount} ativos).`,
       );
       setFile(null);
       setPreview(null);
@@ -66,13 +92,22 @@ export function CatalogPage() {
     }
   }
 
+  async function onExport() {
+    setError("");
+    try {
+      await api.downloadCatalogCsv();
+      setMessage("CSV exportado.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha na exportação");
+    }
+  }
+
   return (
     <>
       <h1 style={{ marginTop: 0 }}>Catálogo</h1>
       <p style={{ color: "var(--muted)" }}>
-        Envie um <strong>CSV</strong> com a primeira linha como cabeçalho. O
-        sistema detecta as colunas e grava cada linha como um item — serve para
-        imobiliária, loja, serviços ou qualquer tabela.
+        CSV com cabeçalho na primeira linha. O sistema descobre as colunas e
+        grava cada linha — qualquer nicho (imóveis, produtos, serviços).
       </p>
 
       {stats && stats.total > 0 && (
@@ -90,9 +125,23 @@ export function CatalogPage() {
           </div>
           {stats.columns?.length > 0 && (
             <p style={{ color: "var(--muted)", fontSize: "0.9rem" }}>
-              Campos: {stats.columns.map((c) => c.label || c.key).join(", ")}
+              Colunas: {stats.columns.map((c) => c.label || c.key).join(", ")}
             </p>
           )}
+          {stats.itemCodeKey && (
+            <p style={{ color: "var(--muted)", fontSize: "0.85rem" }}>
+              Último mapeamento: código → <code>{stats.itemCodeKey}</code>
+              {stats.titleKey ? `, título → ${stats.titleKey}` : ""}
+            </p>
+          )}
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={onExport}
+            style={{ marginTop: "0.5rem" }}
+          >
+            Exportar CSV
+          </button>
         </div>
       )}
 
@@ -126,6 +175,21 @@ export function CatalogPage() {
             {preview.rowCount} linhas · delimitador &quot;{preview.delimiter}
             &quot;
           </p>
+
+          <label className="checks">
+            <input
+              type="checkbox"
+              checked={mergeMode}
+              onChange={(e) => setMergeMode(e.target.checked)}
+            />
+            Mesclar (manter itens que não estão neste CSV; atualizar/somar por
+            código)
+          </label>
+          {!mergeMode && (
+            <p style={{ color: "var(--muted)", fontSize: "0.85rem" }}>
+              Sem mesclar: apaga o catálogo atual e importa só este arquivo.
+            </p>
+          )}
 
           <label>Coluna do código / identificador</label>
           <select

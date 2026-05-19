@@ -103,25 +103,93 @@ export async function getCatalogStats(pool: pg.Pool): Promise<{
   active: number;
   lastImportedAt: string | null;
   columns: Array<{ key: string; label: string }>;
+  itemCodeKey: string | null;
+  titleKey: string | null;
+  activeKey: string | null;
+  sourceFilename: string | null;
 }> {
   const { rows } = await pool.query<{
     total: string;
     active: string;
     last_imported: Date | null;
     columns: Array<{ key: string; label: string }>;
+    item_code_key: string | null;
+    title_key: string | null;
+    active_key: string | null;
+    source_filename: string | null;
   }>(
     `SELECT
        (SELECT COUNT(*)::text FROM app.catalog_items) AS total,
        (SELECT COUNT(*)::text FROM app.catalog_items WHERE active) AS active,
        (SELECT MAX(updated_at) FROM app.catalog_items) AS last_imported,
-       (SELECT columns FROM app.catalog_meta WHERE id = 1) AS columns`,
+       m.columns,
+       m.item_code_key,
+       m.title_key,
+       m.active_key,
+       m.source_filename
+     FROM app.catalog_meta m
+     WHERE m.id = 1`,
   );
+  const row = rows[0];
   return {
-    total: Number(rows[0]?.total ?? 0),
-    active: Number(rows[0]?.active ?? 0),
-    lastImportedAt: rows[0]?.last_imported?.toISOString() ?? null,
-    columns: rows[0]?.columns ?? [],
+    total: Number(row?.total ?? 0),
+    active: Number(row?.active ?? 0),
+    lastImportedAt: row?.last_imported?.toISOString() ?? null,
+    columns: row?.columns ?? [],
+    itemCodeKey: row?.item_code_key ?? null,
+    titleKey: row?.title_key ?? null,
+    activeKey: row?.active_key ?? null,
+    sourceFilename: row?.source_filename ?? null,
   };
+}
+
+function escapeCsvCell(value: string): string {
+  if (/[",\n\r;]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+export async function exportCatalogAsCsv(pool: pg.Pool): Promise<string> {
+  const meta = await getCatalogMeta(pool);
+  const { rows } = await pool.query<CatalogRow>(
+    `SELECT item_code, title, active, fields
+     FROM app.catalog_items
+     ORDER BY item_code`,
+  );
+
+  if (!rows.length) {
+    return "item_code,title,active\n";
+  }
+
+  const columnKeys =
+    meta?.columns?.map((c) => c.key).filter((k) => k !== "_card") ?? [];
+  const allKeys = new Set<string>(columnKeys);
+  for (const row of rows) {
+    for (const key of Object.keys(row.fields ?? {})) {
+      if (key !== "_card") allKeys.add(key);
+    }
+  }
+  const keys = [
+    ...columnKeys,
+    ...[...allKeys].filter((k) => !columnKeys.includes(k)),
+  ];
+
+  const header = ["item_code", "title", "active", ...keys].map(escapeCsvCell);
+  const lines = [header.join(",")];
+
+  for (const row of rows) {
+    const f = row.fields ?? {};
+    const cells = [
+      row.item_code,
+      row.title ?? "",
+      row.active ? "ativo" : "inativo",
+      ...keys.map((k) => String(f[k] ?? "")),
+    ].map(escapeCsvCell);
+    lines.push(cells.join(","));
+  }
+
+  return `${lines.join("\n")}\n`;
 }
 
 export async function getCatalogItemByCode(

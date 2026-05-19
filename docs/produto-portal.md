@@ -66,7 +66,7 @@ Ver arquitetura em [arquitetura-persona-rag.md](./arquitetura-persona-rag.md). O
 |------|--------|
 | `/` | Resumo |
 | `/agenda` | Horários, visitas, bloqueios |
-| `/catalogo` | Upload planilha .xlsx |
+| `/catalogo` | CSV: analisar colunas, importar (substituir ou mesclar), exportar |
 | `/agente` | Tom, empresa, objetivos |
 | `/monitor` | Falhas de processamento |
 | `/equipe` | Criar login cliente (implantador) |
@@ -74,4 +74,5 @@ Ver arquitetura em [arquitetura-persona-rag.md](./arquitetura-persona-rag.md). O
 ## Roadmap UI
 
 - v0.13 ✅ Catálogo + monitor + agenda completa
-- v0.14 Histórico de conversas no painel
+- v0.14 ✅ Catálogo CSV genérico + mesclar/exportar
+- v0.15 Histórico de conversas no painel

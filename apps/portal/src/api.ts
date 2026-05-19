@@ -77,6 +77,10 @@ export type CatalogStats = {
   active: number;
   lastImportedAt: string | null;
   columns: Array<{ key: string; label: string }>;
+  itemCodeKey: string | null;
+  titleKey: string | null;
+  activeKey: string | null;
+  sourceFilename: string | null;
 };
 
 export type CatalogPreview = {
@@ -238,12 +242,18 @@ export const api = {
   },
   importCatalog(
     file: File,
-    opts: { itemCodeKey: string; titleKey?: string; activeKey?: string },
+    opts: {
+      itemCodeKey: string;
+      titleKey?: string;
+      activeKey?: string;
+      mode?: "replace" | "merge";
+    },
   ) {
     const form = new FormData();
     form.append("file", file);
     const q = new URLSearchParams();
     q.set("itemCodeKey", opts.itemCodeKey);
+    q.set("mode", opts.mode ?? "replace");
     if (opts.titleKey) q.set("titleKey", opts.titleKey);
     if (opts.activeKey) q.set("activeKey", opts.activeKey);
     return request<{
@@ -251,8 +261,24 @@ export const api = {
       upserted: number;
       activeCount: number;
       total: number;
+      mode: string;
       columns: Array<{ key: string; label: string }>;
     }>(`/v1/portal/catalog/import?${q}`, { method: "POST", body: form });
+  },
+  async downloadCatalogCsv(): Promise<void> {
+    if (!API_BASE) throw new Error("API não configurada");
+    const t = token();
+    const res = await fetch(`${API_BASE}/v1/portal/catalog/export`, {
+      headers: t ? { Authorization: `Bearer ${t}` } : {},
+    });
+    if (!res.ok) throw new Error("Falha ao exportar");
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "catalogo.csv";
+    a.click();
+    URL.revokeObjectURL(url);
   },
   getAppointments(params?: { status?: string; limit?: number }) {
     const q = new URLSearchParams();

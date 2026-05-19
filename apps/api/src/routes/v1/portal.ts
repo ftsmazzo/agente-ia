@@ -21,7 +21,10 @@ import {
   importCatalogCsv,
   previewCatalogCsv,
 } from "../../services/catalog-import-bridge.js";
-import { getCatalogStats } from "../../services/generic-catalog-service.js";
+import {
+  exportCatalogAsCsv,
+  getCatalogStats,
+} from "../../services/generic-catalog-service.js";
 import {
   listFailedMessages,
   resolveFailedMessage,
@@ -157,7 +160,10 @@ export async function portalRoutes(app: FastifyInstance): Promise<void> {
       itemCodeKey?: string;
       titleKey?: string;
       activeKey?: string;
+      mode?: string;
     };
+
+    const mode = query.mode === "merge" ? "merge" : "replace";
 
     const buffer = await file.toBuffer();
     const result = await importCatalogCsv(app.db, buffer, {
@@ -165,6 +171,7 @@ export async function portalRoutes(app: FastifyInstance): Promise<void> {
       itemCodeKey: query.itemCodeKey?.trim(),
       titleKey: query.titleKey?.trim() || null,
       activeKey: query.activeKey?.trim() || null,
+      mode,
     });
 
     if (result.error === "no_rows") {
@@ -175,6 +182,17 @@ export async function portalRoutes(app: FastifyInstance): Promise<void> {
     }
 
     return reply.send({ ok: true, ...result });
+  });
+
+  app.get("/v1/portal/catalog/export", async (_request, reply) => {
+    const csv = await exportCatalogAsCsv(app.db);
+    return reply
+      .header("Content-Type", "text/csv; charset=utf-8")
+      .header(
+        "Content-Disposition",
+        'attachment; filename="catalogo.csv"',
+      )
+      .send(csv);
   });
 
   app.get("/v1/portal/ops/failed-messages", async (request, reply) => {
