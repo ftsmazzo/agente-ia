@@ -31,6 +31,7 @@ export function Layout() {
         <NavLink to="/monitor">Monitor</NavLink>
         {user?.role === "installer" && (
           <>
+            <NavLink to="/instalacao">Instalação</NavLink>
             <NavLink to="/sistema">Sistema</NavLink>
             <NavLink to="/equipe">Equipe</NavLink>
           </>

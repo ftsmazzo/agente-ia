@@ -6,10 +6,7 @@ import {
   getAgentConfigCatalog,
   updateAgentConfig,
 } from "../../services/agent-config-service.js";
-import {
-  evaluateCapabilityInstall,
-  loadProductManifest,
-} from "../../services/product-capabilities-service.js";
+import { buildInstallGuide } from "../../services/install-guide-service.js";
 import {
   authenticatePortalUser,
   createPortalUser,
@@ -605,16 +602,23 @@ export async function portalRoutes(app: FastifyInstance): Promise<void> {
 
   app.get("/v1/portal/product/agentes-ia", async (_request, reply) => {
     const catalog = await getAgentConfigCatalog(app.db);
-    const manifest = await loadProductManifest();
     const config = await getAgentConfig(app.db);
-    const install = await evaluateCapabilityInstall(
-      manifest,
-      config.capabilities,
-      app.config.features,
-      app.db,
-    );
-    return reply.send({ ...catalog, install });
+    const guide = await buildInstallGuide(app.config, config, app.db);
+    return reply.send({
+      ...catalog,
+      install: guide.capabilities,
+    });
   });
+
+  app.get(
+    "/v1/portal/install",
+    { preHandler: requirePortalRole(["installer"]) },
+    async (_request, reply) => {
+      const config = await getAgentConfig(app.db);
+      const guide = await buildInstallGuide(app.config, config, app.db);
+      return reply.send({ guide });
+    },
+  );
 
   app.post(
     "/v1/portal/users",

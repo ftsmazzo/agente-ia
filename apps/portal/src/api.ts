@@ -110,6 +110,41 @@ export type ProductAgentesIa = {
   install: CapabilityInstallRow[];
 };
 
+export type InstallGuide = {
+  product: { id: string; name: string; description: string };
+  version: string;
+  phases: Array<{ id: string; title: string; steps: string[] }>;
+  workflows: Array<{
+    file: string;
+    label: string;
+    webhook: string | null;
+    required: boolean;
+    capabilityIds: string[];
+  }>;
+  envSync: Array<{
+    label: string;
+    apiVar: string | null;
+    n8nVar: string | null;
+    note: string | null;
+  }>;
+  envTemplates: {
+    api: string;
+    n8n: string;
+    evolution: string;
+    portal: string;
+  };
+  envTemplateFiles: Array<{
+    id: string;
+    label: string;
+    path: string;
+    content: string;
+  }>;
+  docs: { fullGuide: string; n8nWorkflows: string };
+  capabilities: CapabilityInstallRow[];
+  serverEnv: Array<{ key: string; scope: "api"; ok: boolean; hint: string }>;
+  overall: "ok" | "warn" | "error";
+};
+
 export type CatalogStats = {
   total: number;
   active: number;
@@ -371,6 +406,9 @@ export const api = {
   },
   getProductAgentesIa() {
     return request<ProductAgentesIa>("/v1/portal/product/agentes-ia");
+  },
+  getInstallGuide() {
+    return request<{ guide: InstallGuide }>("/v1/portal/install");
   },
   createClientUser(body: { email: string; password: string; name: string }) {
     return request<{ user: PortalUser }>("/v1/portal/users", {

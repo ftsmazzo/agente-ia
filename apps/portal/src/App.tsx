@@ -13,6 +13,7 @@ import { ContactsPage } from "./pages/ContactsPage.js";
 import { WhatsAppPage } from "./pages/WhatsAppPage.js";
 import { SystemPage } from "./pages/SystemPage.js";
 import { TeamPage } from "./pages/TeamPage.js";
+import { InstallPage } from "./pages/InstallPage.js";
 
 function PrivateRoute({ children }: { children: ReactNode }) {
   if (!isLoggedIn()) return <Navigate to="/login" replace />;
@@ -40,6 +41,7 @@ export function App() {
         <Route path="contatos" element={<ContactsPage />} />
         <Route path="whatsapp" element={<WhatsAppPage />} />
         <Route path="sistema" element={<SystemPage />} />
+        <Route path="instalacao" element={<InstallPage />} />
         <Route path="equipe" element={<TeamPage />} />
       </Route>
     </Routes>

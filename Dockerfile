@@ -20,6 +20,7 @@ COPY apps/api ./apps/api
 COPY config/prompts ./config/prompts
 COPY config/product ./config/product
 COPY config/capabilities ./config/capabilities
+COPY env-templates ./env-templates
 
 RUN npm run build -w @realty/shared && npm run build -w @realty/api
 
@@ -42,6 +43,7 @@ COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/config/prompts ./config/prompts
 COPY --from=builder /app/config/product ./config/product
 COPY --from=builder /app/config/capabilities ./config/capabilities
+COPY env-templates ./env-templates
 
 # Migrations run automatically on container start (docker-entrypoint.mjs)
 COPY db/migrations ./db/migrations
