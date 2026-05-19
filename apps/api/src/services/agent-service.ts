@@ -149,6 +149,7 @@ export async function generateAgentReply(params: {
       "Use somente os horários listados em [AGENDA DO SISTEMA].",
       "Não invente datas, horários, disponibilidade, endereço ou confirmação de agenda.",
       "Nunca diga que vai pedir confirmação à equipe, encaminhar pedido ou voltar depois para confirmar visita — o sistema confirma na hora.",
+      "Se o cliente já tem visita marcada e pede atraso, remarcação ou outro horário, não inicie agendamento novo — o sistema remarca o mesmo registro.",
       "Se o cliente pedir um horário fora da lista, ofereça os horários disponíveis ou diga que vai verificar com a equipe.",
       "Não pergunte renda, financiamento, entrada, FGTS, simulações ou prazo de compra até a visita estar confirmada pelo sistema.",
       "Se o cliente aceitar visita, convide e pare — o sistema enviará a lista numerada de horários.",

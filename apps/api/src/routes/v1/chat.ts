@@ -59,6 +59,7 @@ import {
   looksLikeSlotChoice,
   isAwaitingBookingFollowUp,
   resolveQualificationChoice,
+  wantsReschedule,
 } from "../../lib/scheduling-intent.js";
 import {
   buildAppointmentIcsUrl,
@@ -67,22 +68,30 @@ import {
 import {
   buildAppointmentNotifyText,
   buildBookedClientReply,
+  buildRescheduleNotifyText,
+  buildRescheduledClientReply,
 } from "../../lib/appointment-notify.js";
 import { extractPropertyCodesFromHistory } from "../../lib/property-codes-from-history.js";
 import {
   bookAppointment,
+  buildRescheduleSlotOfferReply,
   buildSlotOfferReply,
   findRequestedSlot,
   formatSlotLabel,
   formatSlotsForPrompt,
+  cancelOtherActiveAppointments,
+  getNextActiveAppointment,
   getSchedulingSettings,
+  getAppointment,
   listAvailableSlots,
+  updateAppointment,
 } from "../../services/scheduling-service.js";
 
 type SchedulingConversationState = {
   status?:
     | "awaiting_accept"
     | "awaiting_slot"
+    | "awaiting_reschedule"
     | "booked"
     | "awaiting_qualification_choice"
     | "qualification_closed";
@@ -109,7 +118,11 @@ function getSchedulingState(
 }
 
 function wantsScheduling(message: string): boolean {
-  return /\b(agenda|agendar|marcar|visita|visitar|hor[aá]rio|horarios|horários)\b/i.test(
+  if (wantsReschedule(message)) return false;
+  if (/\b(minha|a)\s+agenda\b/i.test(message) && !/\bagendar\b/i.test(message)) {
+    return false;
+  }
+  return /\b(agendar|marcar|visita|visitar|hor[aá]rio|horarios|horários)\b/i.test(
     message,
   );
 }
@@ -121,6 +134,7 @@ function shouldDeferFinancialQualification(
   return (
     schedulingState.status === "awaiting_accept" ||
     schedulingState.status === "awaiting_slot" ||
+    schedulingState.status === "awaiting_reschedule" ||
     schedulingState.status === "booked" ||
     schedulingState.status === "awaiting_qualification_choice"
   );
@@ -521,6 +535,210 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         (acceptsVisitAffirmative(body.message) ||
           (visitPrompted && acceptsVisitAfterInvite(body.message))) &&
         (visitPrompted || Boolean(qualificationPatch?.visit_requested));
+      const activeAppointment = config.features.scheduling
+        ? await getNextActiveAppointment(app.db, phone)
+        : null;
+      const rescheduleIntent = wantsReschedule(body.message);
+      const isAwaitingReschedule =
+        schedulingState?.status === "awaiting_reschedule";
+      const rescheduleAppointmentId =
+        schedulingState?.appointmentId ?? activeAppointment?.id;
+
+      if (
+        config.features.scheduling &&
+        activeAppointment &&
+        rescheduleAppointmentId &&
+        (rescheduleIntent ||
+          isAwaitingReschedule ||
+          (looksLikeSlotChoice(body.message) &&
+            schedulingState?.appointmentId != null))
+      ) {
+        const existing =
+          (await getAppointment(app.db, rescheduleAppointmentId)) ??
+          activeAppointment;
+        const previousLabel = formatSlotLabel(
+          existing.startsAt,
+          existing.timezone,
+        );
+        const slots = await listAvailableSlots(app.db, { limit: 5 });
+        const selectedSlot = findRequestedSlot(
+          body.message,
+          slots,
+          config.brand.timezone,
+        );
+
+        if (selectedSlot && selectedSlot.startsAt !== existing.startsAt) {
+          const updated = await updateAppointment(app.db, existing.id, {
+            startsAt: selectedSlot.startsAt,
+            confirmationStatus: "pending",
+          });
+          if (updated.ok && updated.appointment) {
+            await cancelOtherActiveAppointments(
+              app.db,
+              phone,
+              updated.appointment.id,
+            );
+            const schedulingSettings = await getSchedulingSettings(app.db);
+            const office = resolveOfficeLocation(schedulingSettings);
+            const newLabel = formatSlotLabel(
+              updated.appointment.startsAt,
+              updated.appointment.timezone,
+            );
+            const who = firstName(contactName);
+            const greeting = who ? `${who}, ` : "";
+            const replyText = buildRescheduledClientReply({
+              brandName: config.brand.brandName,
+              greeting,
+              previousLabel,
+              newLabel,
+              office,
+            });
+            const historyForCodes = await loadHistory(
+              app.redis,
+              phone,
+              config.llm.maxHistoryTurns,
+            );
+            const presentedPropertyCodes =
+              extractPropertyCodesFromHistory(historyForCodes);
+            const icsUrl = buildAppointmentIcsUrl(updated.appointment.id);
+            const appointmentNotifyText = buildRescheduleNotifyText({
+              customerName: contactName,
+              phone,
+              previousLabel,
+              newLabel,
+              office,
+              propertyCode: existing.propertyCode,
+              presentedPropertyCodes,
+              icsUrl,
+            });
+            const booked = appointmentPayload({
+              id: updated.appointment.id,
+              phone,
+              startsAt: updated.appointment.startsAt,
+              endsAt: updated.appointment.endsAt,
+              timezone: updated.appointment.timezone,
+              officeDisplay: office.display,
+              customerName: contactName,
+              propertyCode: existing.propertyCode,
+              presentedPropertyCodes,
+              mapsUrl: office.mapsUrl,
+              icsUrl,
+            });
+            await mergeConversationMetadata(app.db, phone, {
+              scheduling: {
+                status: "awaiting_qualification_choice",
+                appointmentId: updated.appointment.id,
+                startsAt: updated.appointment.startsAt,
+                propertyCode: existing.propertyCode,
+                qualificationRetries: 0,
+                updatedAt: new Date().toISOString(),
+              },
+            });
+            await appendHistory(
+              app.redis,
+              phone,
+              body.message,
+              replyText,
+              config.llm.maxHistoryTurns,
+            );
+            await recordMessageEvent(app.db, {
+              externalId: `${body.messageId}:out`,
+              phone,
+              direction: "outbound",
+              status: "queued",
+              workflowStep: "chat",
+              metadata: buildEventMetadata(
+                {
+                  reason: "appointment_rescheduled",
+                  appointment: booked,
+                  previousStartsAt: existing.startsAt,
+                },
+                replyText,
+              ),
+            });
+            return reply.send({
+              shouldReply: true,
+              replyText,
+              conversationMode: "bot",
+              reason: "appointment_rescheduled",
+              appointmentBooked: booked,
+              appointmentNotifyText,
+            } satisfies ChatResponse);
+          }
+          if (!updated.ok) {
+            const replyText = `${buildRescheduleSlotOfferReply(
+              updated.slots.slice(0, 5),
+              previousLabel,
+              contactName,
+            )}\n\nEsse horário acabou de ficar indisponível.`;
+            await mergeConversationMetadata(app.db, phone, {
+              scheduling: {
+                status: "awaiting_reschedule",
+                appointmentId: existing.id,
+                offeredSlots: updated.slots
+                  .slice(0, 5)
+                  .map((s) => s.startsAt),
+                propertyCode: existing.propertyCode,
+                updatedAt: new Date().toISOString(),
+              },
+            });
+            await appendHistory(
+              app.redis,
+              phone,
+              body.message,
+              replyText,
+              config.llm.maxHistoryTurns,
+            );
+            return reply.send({
+              shouldReply: true,
+              replyText,
+              conversationMode: "bot",
+              reason: "appointment_reschedule_slot_unavailable",
+            } satisfies ChatResponse);
+          }
+        }
+
+        const offerText = buildRescheduleSlotOfferReply(
+          slots.slice(0, 5),
+          previousLabel,
+          contactName,
+        );
+        await mergeConversationMetadata(app.db, phone, {
+          scheduling: {
+            status: "awaiting_reschedule",
+            appointmentId: existing.id,
+            offeredSlots: slots.slice(0, 5).map((s) => s.startsAt),
+            propertyCode: existing.propertyCode,
+            startsAt: existing.startsAt,
+            updatedAt: new Date().toISOString(),
+          },
+        });
+        await appendHistory(
+          app.redis,
+          phone,
+          body.message,
+          offerText,
+          config.llm.maxHistoryTurns,
+        );
+        await recordMessageEvent(app.db, {
+          externalId: `${body.messageId}:out`,
+          phone,
+          direction: "outbound",
+          status: "queued",
+          workflowStep: "chat",
+          metadata: buildEventMetadata(
+            { reason: "appointment_reschedule_offered" },
+            offerText,
+          ),
+        });
+        return reply.send({
+          shouldReply: true,
+          replyText: offerText,
+          conversationMode: "bot",
+          reason: "appointment_reschedule_offered",
+        } satisfies ChatResponse);
+      }
+
       const isAwaitingSchedulingChoice =
         schedulingState?.status === "awaiting_slot";
       const isAwaitingVisitAccept =
@@ -537,6 +755,8 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
       const mustBlockLlmForScheduling =
         isAwaitingSchedulingChoice ||
         isAwaitingVisitAccept ||
+        isAwaitingReschedule ||
+        rescheduleIntent ||
         lastBotOfferedSlots ||
         slotChoiceMessage ||
         bookingFollowUp ||
@@ -561,6 +781,103 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         );
 
         if (selectedSlot) {
+          const existingBeforeBook = await getNextActiveAppointment(
+            app.db,
+            phone,
+          );
+          if (
+            existingBeforeBook &&
+            !isAwaitingReschedule &&
+            !rescheduleIntent
+          ) {
+            const previousLabel = formatSlotLabel(
+              existingBeforeBook.startsAt,
+              existingBeforeBook.timezone,
+            );
+            const updated = await updateAppointment(app.db, existingBeforeBook.id, {
+              startsAt: selectedSlot.startsAt,
+              confirmationStatus: "pending",
+            });
+            if (updated.ok && updated.appointment) {
+              await cancelOtherActiveAppointments(
+                app.db,
+                phone,
+                updated.appointment.id,
+              );
+              const schedulingSettings = await getSchedulingSettings(app.db);
+              const office = resolveOfficeLocation(schedulingSettings);
+              const newLabel = formatSlotLabel(
+                updated.appointment.startsAt,
+                updated.appointment.timezone,
+              );
+              const who = firstName(contactName);
+              const greeting = who ? `${who}, ` : "";
+              const replyText = buildRescheduledClientReply({
+                brandName: config.brand.brandName,
+                greeting,
+                previousLabel,
+                newLabel,
+                office,
+              });
+              const historyForCodes = await loadHistory(
+                app.redis,
+                phone,
+                config.llm.maxHistoryTurns,
+              );
+              const presentedPropertyCodes =
+                extractPropertyCodesFromHistory(historyForCodes);
+              const icsUrl = buildAppointmentIcsUrl(updated.appointment.id);
+              const appointmentNotifyText = buildRescheduleNotifyText({
+                customerName: contactName,
+                phone,
+                previousLabel,
+                newLabel,
+                office,
+                propertyCode: existingBeforeBook.propertyCode,
+                presentedPropertyCodes,
+                icsUrl,
+              });
+              const booked = appointmentPayload({
+                id: updated.appointment.id,
+                phone,
+                startsAt: updated.appointment.startsAt,
+                endsAt: updated.appointment.endsAt,
+                timezone: updated.appointment.timezone,
+                officeDisplay: office.display,
+                customerName: contactName,
+                propertyCode: existingBeforeBook.propertyCode,
+                presentedPropertyCodes,
+                mapsUrl: office.mapsUrl,
+                icsUrl,
+              });
+              await mergeConversationMetadata(app.db, phone, {
+                scheduling: {
+                  status: "awaiting_qualification_choice",
+                  appointmentId: updated.appointment.id,
+                  startsAt: updated.appointment.startsAt,
+                  propertyCode: existingBeforeBook.propertyCode,
+                  qualificationRetries: 0,
+                  updatedAt: new Date().toISOString(),
+                },
+              });
+              await appendHistory(
+                app.redis,
+                phone,
+                body.message,
+                replyText,
+                config.llm.maxHistoryTurns,
+              );
+              return reply.send({
+                shouldReply: true,
+                replyText,
+                conversationMode: "bot",
+                reason: "appointment_rescheduled",
+                appointmentBooked: booked,
+                appointmentNotifyText,
+              } satisfies ChatResponse);
+            }
+          }
+
           const booking = await bookAppointment(app.db, {
             phone,
             startsAt: selectedSlot.startsAt,

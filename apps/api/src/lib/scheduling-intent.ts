@@ -30,6 +30,34 @@ function normalize(text: string): string {
     .toLowerCase();
 }
 
+/** Cliente quer mudar horário de visita já marcada (não é agendamento novo). */
+export function wantsReschedule(message: string): boolean {
+  const t = normalize(message.trim());
+  if (!t || t.length > 220) return false;
+  if (looksLikeSlotChoice(message) && !/\b(atrasar|adiar|remarcar|mudar)\b/.test(t)) {
+    return false;
+  }
+  if (
+    /\b(minha|a)\s+agenda\b/.test(t) &&
+    /\b(atrasar|adiar|remarcar|reagendar|mudar|alterar|trocar|antecipar)\b/.test(t)
+  ) {
+    return true;
+  }
+  if (
+    /\b(atrasar|adiar|remarcar|reagendar|mudar|alterar|trocar|antecipar)\b/.test(t) &&
+    /\b(visita|agenda|hor[aá]rio|marcad[oa])\b/.test(t)
+  ) {
+    return true;
+  }
+  if (
+    /\b(n[aã]o\s+(?:vou|posso|consigo)|impedid[oa])\b/.test(t) &&
+    /\b(visita|hor[aá]rio|hoje|hj)\b/.test(t)
+  ) {
+    return true;
+  }
+  return false;
+}
+
 export function acceptsVisitAffirmative(message: string): boolean {
   const t = message.trim();
   if (!t || t.length > 100) return false;

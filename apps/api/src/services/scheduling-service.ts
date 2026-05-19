@@ -510,6 +510,15 @@ export function findRequestedSlot(
       );
     }
 
+    if (/\b(hoje|hj)\b/.test(text)) {
+      const today = getZonedParts(new Date(), timeZone);
+      return (
+        local.year === today.year &&
+        local.month === today.month &&
+        local.day === today.day
+      );
+    }
+
     if (mentionedWeekdays.length > 0) {
       const slotWd = slotWeekdayInTimezone(slot.startsAt, timeZone);
       if (!mentionedWeekdays.includes(slotWd)) return false;
@@ -576,6 +585,58 @@ export function buildSlotOfferReply(slots: AppointmentSlot[]): string {
     .map((slot) => `${slot.option}. ${slot.label}`)
     .join("\n");
   return `Perfeito, vamos agendar sua visita na imobiliária.\n\nTenho estes horários disponíveis:\n${list}\n\nQual deles fica melhor para você?`;
+}
+
+export function buildRescheduleSlotOfferReply(
+  slots: AppointmentSlot[],
+  previousLabel: string,
+  contactName?: string | null,
+): string {
+  const who = contactName?.trim().split(/\s+/)[0];
+  const greeting = who ? `${who}, ` : "";
+  if (!slots.length) {
+    return `${greeting}entendi que você precisa mudar o horário (estava ${previousLabel}). No momento não achei outro horário livre nos próximos dias — vou verificar com a equipe e já te retorno.`;
+  }
+  const list = slots
+    .slice(0, 5)
+    .map((slot) => `${slot.option}. ${slot.label}`)
+    .join("\n");
+  return `${greeting}sem problema — sua visita estava prevista para *${previousLabel}*. Posso remarcar para:\n\n${list}\n\nQual opção fica melhor?`;
+}
+
+/** Cancela outras visitas ativas do mesmo telefone (ex.: duplicata por bug). */
+export async function cancelOtherActiveAppointments(
+  pool: pg.Pool,
+  phone: string,
+  keepId: number,
+): Promise<number> {
+  const { rowCount } = await pool.query(
+    `UPDATE app.appointments
+     SET status = 'cancelled', updated_at = NOW()
+     WHERE phone = $1
+       AND id <> $2
+       AND status IN ('scheduled', 'confirmed')
+       AND ends_at > NOW()`,
+    [phone, keepId],
+  );
+  return rowCount ?? 0;
+}
+
+export async function getNextActiveAppointment(
+  pool: pg.Pool,
+  phone: string,
+): Promise<AppointmentRecord | null> {
+  const { rows } = await pool.query<AppointmentRow>(
+    `SELECT ${APPOINTMENT_COLUMNS}
+     FROM app.appointments
+     WHERE phone = $1
+       AND status IN ('scheduled', 'confirmed')
+       AND ends_at > NOW()
+     ORDER BY starts_at ASC
+     LIMIT 1`,
+    [phone],
+  );
+  return rows[0] ? toAppointment(rows[0]) : null;
 }
 
 export async function bookAppointment(
