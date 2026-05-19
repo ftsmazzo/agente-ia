@@ -265,9 +265,16 @@ async function request<T>(
     );
   }
 
+  const method = (options.method ?? "GET").toUpperCase();
+  let body = options.body;
   const headers = new Headers(options.headers);
-  if (!(options.body instanceof FormData)) {
-    headers.set("Content-Type", "application/json");
+  if (!(body instanceof FormData)) {
+    if (body == null && ["POST", "PUT", "PATCH"].includes(method)) {
+      body = "{}";
+    }
+    if (body != null) {
+      headers.set("Content-Type", "application/json");
+    }
   }
   const t = token();
   if (t) headers.set("Authorization", `Bearer ${t}`);
@@ -276,6 +283,8 @@ async function request<T>(
   try {
     res = await fetch(`${API_BASE}${path}`, {
       ...options,
+      method,
+      body,
       headers,
     });
   } catch {
