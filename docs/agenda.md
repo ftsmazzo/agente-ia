@@ -123,6 +123,8 @@ O workflow `06-ops-notifications.json` roda a cada **30 minutos**, chama `POST /
 
 O **corretor/usuário do portal não recebe** lembrete de visita (não confirma agenda pelo portal). O cliente recebe mensagem acolhedora com *SIM* / *NÃO*; a SofIA confirma ou cancela no `/v1/chat`.
 
+**Remarcação:** ao mudar `starts_at`, o sistema zera `reminder_24h_sent_at` e volta `confirmation_status` para `pending`, para o cron poder enviar lembrete de confirmação do **novo** horário (o lembrete do horário antigo não vale mais).
+
 **Importante:** reimporte `06-ops-notifications.json` após atualizar — o workflow antigo mandava tudo para `OPS_NOTIFY_PHONE` / `APPOINTMENT_NOTIFY_PHONE`.
 
 Variáveis no n8n:

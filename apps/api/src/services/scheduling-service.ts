@@ -854,15 +854,27 @@ export async function updateAppointment(
     endsAt = selected.endsAt;
   }
 
+  const visitTimeChanged = Boolean(
+    startsAt && startsAt !== existing.startsAt,
+  );
+
   try {
     const { rows } = await pool.query<AppointmentRow>(
       `UPDATE app.appointments
        SET status = COALESCE($2, status),
-           confirmation_status = COALESCE($3, confirmation_status),
+           confirmation_status = CASE
+             WHEN $7::boolean THEN 'pending'
+             ELSE COALESCE($3, confirmation_status)
+           END,
            confirmed_at = CASE
+             WHEN $7::boolean THEN NULL
              WHEN $3 = 'confirmed' THEN COALESCE(confirmed_at, NOW())
              WHEN $3 IN ('pending', 'declined') THEN NULL
              ELSE confirmed_at
+           END,
+           reminder_24h_sent_at = CASE
+             WHEN $7::boolean THEN NULL
+             ELSE reminder_24h_sent_at
            END,
            notes = COALESCE($4, notes),
            starts_at = COALESCE($5, starts_at),
@@ -877,6 +889,7 @@ export async function updateAppointment(
         patch.notes ?? null,
         startsAt,
         endsAt,
+        visitTimeChanged,
       ],
     );
     return { ok: true, appointment: rows[0] ? toAppointment(rows[0]) : null };

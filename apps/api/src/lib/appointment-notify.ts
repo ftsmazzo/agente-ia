@@ -106,6 +106,8 @@ export function buildRescheduledClientReply(params: {
     `Local: ${params.office.display}`,
     ...formatMapsLines(params.office.mapsUrl),
     "",
+    "Perto do novo horário te mando um lembrete no WhatsApp para confirmar (SIM ou NÃO).",
+    "",
     "Qualquer coisa até lá, é só me chamar por aqui.",
   ];
   return lines.join("\n");

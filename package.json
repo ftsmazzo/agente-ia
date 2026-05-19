@@ -1,6 +1,6 @@
 {
   "name": "realty-agent-platform",
-  "version": "0.22.4",
+  "version": "0.22.5",
   "private": true,
   "description": "White-label real estate AI agent platform — API, orchestration hooks, and deployment templates",
   "license": "UNLICENSED",
