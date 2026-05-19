@@ -7,6 +7,11 @@ export type AppointmentStatus =
   | "completed"
   | "no_show";
 
+export type AppointmentConfirmationStatus =
+  | "pending"
+  | "confirmed"
+  | "declined";
+
 export type SchedulingSettings = {
   timezone: string;
   weekdays: number[];
@@ -35,6 +40,9 @@ export type AppointmentRecord = {
   customerName: string | null;
   propertyCode: string | null;
   status: AppointmentStatus;
+  confirmationStatus: AppointmentConfirmationStatus;
+  confirmedAt: string | null;
+  reminder24hSentAt: string | null;
   startsAt: string;
   endsAt: string;
   timezone: string;
@@ -52,6 +60,9 @@ type AppointmentRow = {
   customer_name: string | null;
   property_code: string | null;
   status: AppointmentStatus;
+  confirmation_status: AppointmentConfirmationStatus;
+  confirmed_at: Date | null;
+  reminder_24h_sent_at: Date | null;
   starts_at: Date;
   ends_at: Date;
   timezone: string;
@@ -62,6 +73,11 @@ type AppointmentRow = {
   created_at: Date;
   updated_at: Date;
 };
+
+const APPOINTMENT_COLUMNS = `id, phone, customer_name, property_code, status,
+  confirmation_status, confirmed_at, reminder_24h_sent_at,
+  starts_at, ends_at, timezone, location, source, notes, metadata,
+  created_at, updated_at`;
 
 const ACTIVE_STATUSES: AppointmentStatus[] = ["scheduled", "confirmed"];
 
@@ -167,6 +183,9 @@ function toAppointment(row: AppointmentRow): AppointmentRecord {
     customerName: row.customer_name,
     propertyCode: row.property_code,
     status: row.status,
+    confirmationStatus: row.confirmation_status ?? "pending",
+    confirmedAt: row.confirmed_at?.toISOString() ?? null,
+    reminder24hSentAt: row.reminder_24h_sent_at?.toISOString() ?? null,
     startsAt: row.starts_at.toISOString(),
     endsAt: row.ends_at.toISOString(),
     timezone: row.timezone,
@@ -443,11 +462,19 @@ export function findRequestedSlot(
   timeZone: string,
 ): AppointmentSlot | null {
   const text = normalize(message);
-  const short = text.trim().length <= 12;
-  const optionMatch = text.match(
-    /\b(?:opcao|op|numero|n|nº|#)?\s*([1-9])\b/,
-  );
-  if (optionMatch && (short || /opcao|numero|nº|#/.test(text))) {
+  const trimmed = text.trim();
+  const short = trimmed.length <= 16;
+
+  if (/^[1-5]$/.test(trimmed)) {
+    const option = Number(trimmed);
+    const byOption = slots.find((slot) => slot.option === option);
+    if (byOption) return byOption;
+  }
+
+  const optionMatch =
+    trimmed.match(/\b(?:opcao|op)(?:\s*[ºo.]?\s*)?([1-9])\b/) ??
+    trimmed.match(/\b(?:numero|n|#)\s*([1-9])\b/);
+  if (optionMatch && (short || /opcao|op\b|numero|#/.test(trimmed))) {
     const option = Number(optionMatch[1]);
     const byOption = slots.find((slot) => slot.option === option);
     if (byOption) return byOption;
@@ -591,9 +618,7 @@ export async function bookAppointment(
          location, source, notes, metadata, updated_at
        )
        VALUES ($1, $2, $3, $4, $5, $6, $7, 'sofia', $8, $9::jsonb, NOW())
-       RETURNING id, phone, customer_name, property_code, status, starts_at,
-                 ends_at, timezone, location, source, notes, metadata,
-                 created_at, updated_at`,
+       RETURNING ${APPOINTMENT_COLUMNS}`,
       [
         input.phone,
         input.customerName ?? null,
@@ -621,7 +646,15 @@ export async function bookAppointment(
 
 export async function listAppointments(
   pool: pg.Pool,
-  options?: { status?: AppointmentStatus; from?: string; to?: string; limit?: number },
+  options?: {
+    status?: AppointmentStatus;
+    confirmationStatus?: AppointmentConfirmationStatus;
+    from?: string;
+    to?: string;
+    limit?: number;
+    upcomingOnly?: boolean;
+    pastOnly?: boolean;
+  },
 ): Promise<AppointmentRecord[]> {
   const filters: string[] = [];
   const values: unknown[] = [];
@@ -629,6 +662,10 @@ export async function listAppointments(
   if (options?.status) {
     values.push(options.status);
     filters.push(`status = $${values.length}`);
+  }
+  if (options?.confirmationStatus) {
+    values.push(options.confirmationStatus);
+    filters.push(`confirmation_status = $${values.length}`);
   }
   if (options?.from) {
     values.push(options.from);
@@ -638,18 +675,23 @@ export async function listAppointments(
     values.push(options.to);
     filters.push(`starts_at < $${values.length}`);
   }
+  if (options?.upcomingOnly) {
+    filters.push(`starts_at >= NOW()`);
+  }
+  if (options?.pastOnly) {
+    filters.push(`starts_at < NOW()`);
+  }
 
   const limit = Math.min(Math.max(options?.limit ?? 100, 1), 200);
   values.push(limit);
   const where = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
+  const order = options?.pastOnly ? "DESC" : "ASC";
 
   const { rows } = await pool.query<AppointmentRow>(
-    `SELECT id, phone, customer_name, property_code, status, starts_at,
-            ends_at, timezone, location, source, notes, metadata,
-            created_at, updated_at
+    `SELECT ${APPOINTMENT_COLUMNS}
      FROM app.appointments
      ${where}
-     ORDER BY starts_at ASC
+     ORDER BY starts_at ${order}
      LIMIT $${values.length}`,
     values,
   );
@@ -660,7 +702,12 @@ export async function listAppointments(
 export async function updateAppointment(
   pool: pg.Pool,
   id: number,
-  patch: { status?: AppointmentStatus; notes?: string | null; startsAt?: string },
+  patch: {
+    status?: AppointmentStatus;
+    confirmationStatus?: AppointmentConfirmationStatus;
+    notes?: string | null;
+    startsAt?: string;
+  },
 ): Promise<
   | { ok: true; appointment: AppointmentRecord | null }
   | { ok: false; reason: "slot_unavailable"; slots: AppointmentSlot[] }
@@ -688,15 +735,26 @@ export async function updateAppointment(
     const { rows } = await pool.query<AppointmentRow>(
       `UPDATE app.appointments
        SET status = COALESCE($2, status),
-           notes = COALESCE($3, notes),
-           starts_at = COALESCE($4, starts_at),
-           ends_at = COALESCE($5, ends_at),
+           confirmation_status = COALESCE($3, confirmation_status),
+           confirmed_at = CASE
+             WHEN $3 = 'confirmed' THEN COALESCE(confirmed_at, NOW())
+             WHEN $3 IN ('pending', 'declined') THEN NULL
+             ELSE confirmed_at
+           END,
+           notes = COALESCE($4, notes),
+           starts_at = COALESCE($5, starts_at),
+           ends_at = COALESCE($6, ends_at),
            updated_at = NOW()
        WHERE id = $1
-       RETURNING id, phone, customer_name, property_code, status, starts_at,
-                 ends_at, timezone, location, source, notes, metadata,
-                 created_at, updated_at`,
-      [id, patch.status ?? null, patch.notes ?? null, startsAt, endsAt],
+       RETURNING ${APPOINTMENT_COLUMNS}`,
+      [
+        id,
+        patch.status ?? null,
+        patch.confirmationStatus ?? null,
+        patch.notes ?? null,
+        startsAt,
+        endsAt,
+      ],
     );
     return { ok: true, appointment: rows[0] ? toAppointment(rows[0]) : null };
   } catch (err) {
@@ -713,10 +771,7 @@ export async function getAppointment(
   id: number,
 ): Promise<AppointmentRecord | null> {
   const { rows } = await pool.query<AppointmentRow>(
-    `SELECT id, phone, customer_name, property_code, status, starts_at,
-            ends_at, timezone, location, source, notes, metadata,
-            created_at, updated_at
-     FROM app.appointments WHERE id = $1`,
+    `SELECT ${APPOINTMENT_COLUMNS} FROM app.appointments WHERE id = $1`,
     [id],
   );
   return rows[0] ? toAppointment(rows[0]) : null;

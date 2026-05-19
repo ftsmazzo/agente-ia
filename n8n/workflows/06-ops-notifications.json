@@ -1,0 +1,174 @@
+{
+  "name": "06 Ops — lembretes e alertas",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "b6000001-0001-4001-8001-000000000001",
+      "name": "A cada 30 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.PUBLIC_AGENT_API_URL || $env.AGENT_API_URL || '').replace(/\\/$/, '') }}/v1/ops/notifications/tick",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.AGENT_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ portalBaseUrl: ($env.PORTAL_PUBLIC_URL || '').replace(/\\/$/, '') || undefined }) }}",
+        "options": {}
+      },
+      "id": "b6000001-0001-4001-8001-000000000002",
+      "name": "Tick notificações",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [280, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $input.first().json;\nconst messages = Array.isArray(res.messages) ? res.messages : [];\nconst notifyPhone = String($env.OPS_NOTIFY_PHONE || $env.APPOINTMENT_NOTIFY_PHONE || '').replace(/\\D/g, '');\nconst evolutionUrl = String($env.EVOLUTION_BASE_URL || '').replace(/\\/$/, '');\nconst instance = String($env.EVOLUTION_INSTANCE || '');\nif (!notifyPhone) {\n  return [{ json: { skip: true, reason: 'OPS_NOTIFY_PHONE ou APPOINTMENT_NOTIFY_PHONE não definido' } }];\n}\nif (!evolutionUrl || !instance) {\n  return [{ json: { skip: true, reason: 'Evolution não configurado no n8n' } }];\n}\nif (messages.length === 0) {\n  return [{ json: { skip: true, reason: 'Nada a enviar' } }];\n}\nreturn messages.map((m) => ({\n  json: {\n    skip: false,\n    text: m.text,\n    notifyPhone,\n    evolutionUrl,\n    instance,\n    kind: m.kind,\n    id: m.id,\n  },\n}));"
+      },
+      "id": "b6000001-0001-4001-8001-000000000003",
+      "name": "Preparar envios",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [540, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-skip",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b6000001-0001-4001-8001-000000000004",
+      "name": "Tem mensagem?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [800, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.evolutionUrl }}/message/sendText/{{ $json.instance }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.notifyPhone, text: $json.text }) }}",
+        "options": {}
+      },
+      "id": "b6000001-0001-4001-8001-000000000005",
+      "name": "Enviar WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1060, 280]
+    }
+  ],
+  "connections": {
+    "A cada 30 min": {
+      "main": [
+        [
+          {
+            "node": "Tick notificações",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tick notificações": {
+      "main": [
+        [
+          {
+            "node": "Preparar envios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar envios": {
+      "main": [
+        [
+          {
+            "node": "Tem mensagem?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem mensagem?": {
+      "main": [
+        [
+          {
+            "node": "Enviar WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

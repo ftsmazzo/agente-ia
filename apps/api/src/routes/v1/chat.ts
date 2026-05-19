@@ -53,7 +53,11 @@ import { fetchPropertyKnowledge } from "../../services/property-knowledge-servic
 import { shouldQueryPropertyRag } from "../../services/property-rag-service.js";
 import {
   acceptsVisitAffirmative,
+  acceptsVisitAfterInvite,
   botMessageInvitesVisit,
+  botMessageOfferedNumberedSlots,
+  looksLikeSlotChoice,
+  isAwaitingBookingFollowUp,
   resolveQualificationChoice,
 } from "../../lib/scheduling-intent.js";
 import {
@@ -514,13 +518,36 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         schedulingState?.status === "awaiting_accept" ||
         Boolean(lastBotReply && botMessageInvitesVisit(lastBotReply));
       const acceptsVisit =
-        acceptsVisitAffirmative(body.message) &&
+        (acceptsVisitAffirmative(body.message) ||
+          (visitPrompted && acceptsVisitAfterInvite(body.message))) &&
         (visitPrompted || Boolean(qualificationPatch?.visit_requested));
+      const mustBlockLlmForScheduling =
+        isAwaitingSchedulingChoice ||
+        isAwaitingVisitAccept ||
+        lastBotOfferedSlots ||
+        slotChoiceMessage ||
+        bookingFollowUp ||
+        acceptsVisit;
       const isAwaitingSchedulingChoice =
         schedulingState?.status === "awaiting_slot";
+      const isAwaitingVisitAccept =
+        schedulingState?.status === "awaiting_accept";
+      const slotChoiceMessage = looksLikeSlotChoice(body.message);
+      const bookingFollowUp =
+        isAwaitingBookingFollowUp(body.message) &&
+        (schedulingState?.visitPrompted === true ||
+          isAwaitingVisitAccept ||
+          isAwaitingSchedulingChoice);
+      const lastBotOfferedSlots = Boolean(
+        lastBotReply && botMessageOfferedNumberedSlots(lastBotReply),
+      );
       const shouldHandleScheduling =
         config.features.scheduling &&
         (isAwaitingSchedulingChoice ||
+          isAwaitingVisitAccept ||
+          slotChoiceMessage ||
+          bookingFollowUp ||
+          lastBotOfferedSlots ||
           acceptsVisit ||
           Boolean(qualificationPatch?.visit_requested) ||
           wantsScheduling(body.message));
@@ -680,7 +707,11 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
           } satisfies ChatResponse);
         }
 
-        if (isAwaitingSchedulingChoice) {
+        if (
+          isAwaitingSchedulingChoice ||
+          slotChoiceMessage ||
+          lastBotOfferedSlots
+        ) {
           return reply.send(
             await offerSlotsDeterministic(app, {
               phone,
@@ -696,6 +727,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
 
         if (
           acceptsVisit ||
+          bookingFollowUp ||
           qualificationPatch?.visit_requested ||
           wantsScheduling(body.message)
         ) {
@@ -704,11 +736,30 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
               phone,
               messageId: body.messageId,
               message: body.message,
-              propertyCode: extracted.propertyCode,
-              reason: "appointment_slots_offered",
+              propertyCode:
+                extracted.propertyCode ?? schedulingState?.propertyCode,
+              reason: bookingFollowUp
+                ? "appointment_booking_followup"
+                : "appointment_slots_offered",
             }),
           );
         }
+      }
+
+      if (config.features.scheduling && mustBlockLlmForScheduling) {
+        return reply.send(
+          await offerSlotsDeterministic(app, {
+            phone,
+            messageId: body.messageId,
+            message: body.message,
+            propertyCode:
+              extracted.propertyCode ?? schedulingState?.propertyCode,
+            reason: slotChoiceMessage
+              ? "scheduling_funnel_slot_retry"
+              : "scheduling_funnel_guard",
+            slotMismatch: slotChoiceMessage || lastBotOfferedSlots,
+          }),
+        );
       }
 
       let replyText: string;
@@ -730,6 +781,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
       let schedulingBlock: string | undefined;
       if (
         config.features.scheduling &&
+        !mustBlockLlmForScheduling &&
         schedulingState?.status !== "awaiting_slot" &&
         schedulingState?.status !== "qualification_closed"
       ) {
@@ -817,20 +869,38 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
             config.llm.maxHistoryTurns,
           );
 
-          if (
-            config.features.scheduling &&
-            botMessageInvitesVisit(replyText) &&
-            schedulingState?.status !== "awaiting_slot" &&
-            schedulingState?.status !== "awaiting_qualification_choice"
-          ) {
-            await mergeConversationMetadata(app.db, phone, {
-              scheduling: {
-                status: "awaiting_accept",
-                visitPrompted: true,
-                propertyCode: extracted.propertyCode,
-                updatedAt: new Date().toISOString(),
-              },
-            });
+          if (config.features.scheduling) {
+            if (
+              botMessageOfferedNumberedSlots(replyText) &&
+              schedulingState?.status !== "awaiting_qualification_choice"
+            ) {
+              const slotsForMeta = await listAvailableSlots(app.db, {
+                limit: 5,
+              });
+              await mergeConversationMetadata(app.db, phone, {
+                scheduling: {
+                  status: "awaiting_slot",
+                  visitPrompted: true,
+                  offeredSlots: slotsForMeta.map((slot) => slot.startsAt),
+                  propertyCode:
+                    extracted.propertyCode ?? schedulingState?.propertyCode,
+                  updatedAt: new Date().toISOString(),
+                },
+              });
+            } else if (
+              botMessageInvitesVisit(replyText) &&
+              schedulingState?.status !== "awaiting_slot" &&
+              schedulingState?.status !== "awaiting_qualification_choice"
+            ) {
+              await mergeConversationMetadata(app.db, phone, {
+                scheduling: {
+                  status: "awaiting_accept",
+                  visitPrompted: true,
+                  propertyCode: extracted.propertyCode,
+                  updatedAt: new Date().toISOString(),
+                },
+              });
+            }
           }
         } catch (llmErr) {
           llmErrorDetail =

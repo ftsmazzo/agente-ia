@@ -148,9 +148,11 @@ export async function generateAgentReply(params: {
       "## Instrução obrigatória (agenda)",
       "Use somente os horários listados em [AGENDA DO SISTEMA].",
       "Não invente datas, horários, disponibilidade, endereço ou confirmação de agenda.",
+      "Nunca diga que vai pedir confirmação à equipe, encaminhar pedido ou voltar depois para confirmar visita — o sistema confirma na hora.",
       "Se o cliente pedir um horário fora da lista, ofereça os horários disponíveis ou diga que vai verificar com a equipe.",
       "Não pergunte renda, financiamento, entrada, FGTS, simulações ou prazo de compra até a visita estar confirmada pelo sistema.",
       "Se o cliente aceitar visita, convide e pare — o sistema enviará a lista numerada de horários.",
+      "Se o cliente escolher um número da lista, não responda — o sistema registra o agendamento.",
     );
   }
 

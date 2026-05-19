@@ -28,8 +28,15 @@ const bookBodySchema = z.object({
   metadata: z.record(z.unknown()).optional(),
 });
 
+const appointmentConfirmationSchema = z.enum([
+  "pending",
+  "confirmed",
+  "declined",
+]);
+
 const patchBodySchema = z.object({
   status: appointmentStatusSchema.optional(),
+  confirmationStatus: appointmentConfirmationSchema.optional(),
   startsAt: z.string().datetime().optional(),
   notes: z.string().max(2000).nullable().optional(),
 });

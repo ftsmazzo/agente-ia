@@ -310,9 +310,17 @@ textarea {
   margin-bottom: 1.25rem;
 }
 
-.conv-actions .btn-ghost.active {
+.conv-actions .btn-ghost.active,
+.agenda-tabs .btn-ghost.active {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.agenda-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
 }
 
 .conv-thread .chat-log {

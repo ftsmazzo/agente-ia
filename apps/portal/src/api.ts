@@ -114,9 +114,13 @@ export type Appointment = {
   customerName: string | null;
   propertyCode: string | null;
   status: string;
+  confirmationStatus: "pending" | "confirmed" | "declined";
+  confirmedAt: string | null;
+  reminder24hSentAt: string | null;
   startsAt: string;
   endsAt: string;
   location: string;
+  notes?: string | null;
 };
 
 export type Blackout = {
@@ -367,13 +371,37 @@ export const api = {
     a.click();
     URL.revokeObjectURL(url);
   },
-  getAppointments(params?: { status?: string; limit?: number }) {
+  getAppointments(params?: {
+    status?: string;
+    confirmationStatus?: string;
+    upcoming?: boolean;
+    past?: boolean;
+    limit?: number;
+  }) {
     const q = new URLSearchParams();
     if (params?.status) q.set("status", params.status);
+    if (params?.confirmationStatus) {
+      q.set("confirmationStatus", params.confirmationStatus);
+    }
+    if (params?.upcoming) q.set("upcoming", "1");
+    if (params?.past) q.set("past", "1");
     if (params?.limit) q.set("limit", String(params.limit));
     const qs = q.toString();
     return request<{ appointments: Appointment[] }>(
       `/v1/portal/scheduling/appointments${qs ? `?${qs}` : ""}`,
+    );
+  },
+  patchAppointment(
+    id: number,
+    body: {
+      status?: string;
+      confirmationStatus?: "pending" | "confirmed" | "declined";
+      notes?: string | null;
+    },
+  ) {
+    return request<{ ok: boolean; appointment: Appointment }>(
+      `/v1/portal/scheduling/appointments/${id}`,
+      { method: "PATCH", body: JSON.stringify(body) },
     );
   },
   getBlackouts() {

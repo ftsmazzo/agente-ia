@@ -14,7 +14,9 @@ import { requirePortalRole } from "../../plugins/auth-portal.js";
 import {
   getSchedulingSettings,
   listAppointments,
+  updateAppointment,
   updateSchedulingSettings,
+  type AppointmentConfirmationStatus,
   type AppointmentStatus,
 } from "../../services/scheduling-service.js";
 import {
@@ -88,6 +90,26 @@ const agentPatchSchema = z.object({
     })
     .optional(),
   customRules: z.string().max(4000).optional(),
+});
+
+const appointmentStatusSchema = z.enum([
+  "scheduled",
+  "confirmed",
+  "cancelled",
+  "completed",
+  "no_show",
+]);
+
+const appointmentConfirmationSchema = z.enum([
+  "pending",
+  "confirmed",
+  "declined",
+]);
+
+const appointmentPatchSchema = z.object({
+  status: appointmentStatusSchema.optional(),
+  confirmationStatus: appointmentConfirmationSchema.optional(),
+  notes: z.string().max(2000).nullable().optional(),
 });
 
 const blackoutSchema = z.object({
@@ -442,18 +464,55 @@ export async function portalRoutes(app: FastifyInstance): Promise<void> {
   app.get("/v1/portal/scheduling/appointments", async (request, reply) => {
     const query = request.query as {
       status?: AppointmentStatus;
+      confirmationStatus?: AppointmentConfirmationStatus;
       from?: string;
       to?: string;
       limit?: string;
+      upcoming?: string;
+      past?: string;
     };
     const appointments = await listAppointments(app.db, {
       status: query.status,
+      confirmationStatus: query.confirmationStatus,
       from: query.from,
       to: query.to,
-      limit: query.limit ? Number(query.limit) : 50,
+      limit: query.limit ? Number(query.limit) : 100,
+      upcomingOnly: query.upcoming === "1" || query.upcoming === "true",
+      pastOnly: query.past === "1" || query.past === "true",
     });
     return reply.send({ appointments });
   });
+
+  app.patch(
+    "/v1/portal/scheduling/appointments/:id",
+    async (request, reply) => {
+      const id = Number((request.params as { id: string }).id);
+      if (!Number.isInteger(id) || id <= 0) {
+        return reply.status(400).send({ error: "invalid_id" });
+      }
+
+      const parsed = appointmentPatchSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: "validation_error",
+          details: parsed.error.flatten(),
+        });
+      }
+
+      const result = await updateAppointment(app.db, id, parsed.data);
+      if (!result.ok) {
+        return reply.status(409).send({
+          error: result.reason,
+          slots: result.slots.slice(0, 5),
+        });
+      }
+      if (!result.appointment) {
+        return reply.status(404).send({ error: "not_found" });
+      }
+
+      return reply.send({ ok: true, appointment: result.appointment });
+    },
+  );
 
   app.get("/v1/portal/scheduling/blackouts", async (_request, reply) => {
     const { rows } = await app.db.query<{

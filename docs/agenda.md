@@ -79,17 +79,20 @@ Filtros opcionais:
 
 ### `PATCH /v1/scheduling/appointments/:id`
 
-Atualiza status ou observação:
+Atualiza status, confirmação operacional ou observação:
 
 ```json
 {
   "startsAt": "2026-05-20T13:00:00.000Z",
   "status": "cancelled",
+  "confirmationStatus": "confirmed",
   "notes": "Cliente pediu remarcação"
 }
 ```
 
 Status possíveis: `scheduled`, `confirmed`, `cancelled`, `completed`, `no_show`.
+
+**Confirmação operacional** (`confirmationStatus`): `pending`, `confirmed`, `declined` — usada no portal para organizar visitas após o lembrete ~24h antes.
 
 Se `startsAt` for enviado, a API valida disponibilidade antes de remarcar. Se o horário estiver ocupado, retorna `409 slot_unavailable`.
 
@@ -99,11 +102,30 @@ Baixa o arquivo `.ics` para adicionar manualmente em Google Calendar, Apple Cale
 
 Importante: `.ics` manual não é sincronização bidirecional. A fonte oficial continua sendo o Postgres.
 
-## n8n
+## Portal — Agenda
 
-O workflow `01-whatsapp-agent.json` notifica o corretor quando `/v1/chat` retorna `appointmentBooked`.
+A tela **Agenda** no portal lista visitas (próximas, pendentes de confirmação, passadas) e permite **Confirmar visita**, **Recusar** ou **Cancelar** sem depender do WhatsApp.
+
+## Lembretes e alertas (n8n)
+
+O workflow `06-ops-notifications.json` roda a cada **30 minutos**, chama `POST /v1/ops/notifications/tick` e envia WhatsApp para o número operacional quando houver:
+
+| Tipo | Quando |
+|------|--------|
+| Lembrete 24h | Visita em ~22–26h, `confirmation_status = pending` |
+| Erro novo | Registro em `app.failed_messages` ainda não alertado |
+| Resumo | 10+ falhas não resolvidas (no máximo 1x a cada 12h) |
 
 Variáveis no n8n:
+
+| Variável | Descrição |
+|----------|-----------|
+| `OPS_NOTIFY_PHONE` | Destino dos lembretes/alertas (opcional: usa `APPOINTMENT_NOTIFY_PHONE`) |
+| `PORTAL_PUBLIC_URL` | URL do portal (link no lembrete de confirmação) |
+| `PUBLIC_AGENT_API_URL` | URL da API (tick) |
+| `AGENT_API_KEY` | Igual `API_INTERNAL_KEY` |
+
+O workflow `01-whatsapp-agent.json` notifica o corretor **na hora** quando `/v1/chat` retorna `appointmentBooked`.
 
 | Variável | Descrição |
 |----------|-----------|

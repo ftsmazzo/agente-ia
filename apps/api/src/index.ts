@@ -12,6 +12,7 @@ import { debounceRoutes } from "./routes/v1/debounce.js";
 import { configRoutes } from "./routes/v1/config.js";
 import { portalRoutes } from "./routes/v1/portal.js";
 import { schedulingRoutes } from "./routes/v1/scheduling.js";
+import { opsRoutes } from "./routes/v1/ops.js";
 
 async function main(): Promise<void> {
   const config = loadAppConfig();
@@ -59,6 +60,7 @@ async function main(): Promise<void> {
   await conversationRoutes(app);
   await debounceRoutes(app);
   await schedulingRoutes(app);
+  await opsRoutes(app);
   await portalRoutes(app);
 
   await app.listen({ port: config.port, host: "0.0.0.0" });

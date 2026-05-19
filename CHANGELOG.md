@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.2] - 2026-05-19
+
+### Fixed
+
+- Agenda: aceite após convite cobre respostas curtas sem lista fixa (`acceptsVisitAfterInvite`) — "Adoraria" e similares
+- Escolha de horário: `3`, `Opção 3`, `opcao3` sempre disparam booking; LLM bloqueada se ainda houver lista de horários na conversa
+- Testes automatizados em `apps/api/test/scheduling-intent.test.js`
+
+## [0.20.1] - 2026-05-19
+
+### Fixed
+
+- Agendamento: "Adoraria" e "Opção N" voltam a acionar booking determinístico (antes caía na LLM e prometia confirmação da equipe sem gravar visita)
+- Quando a LLM lista horários numerados, conversa passa a `awaiting_slot` para a escolha do cliente ser processada pela API
+
+## [0.20.0] - 2026-05-18
+
+### Added
+
+- Portal **Agenda**: abas Próximos / Pendentes confirmação / Passados; botões confirmar, recusar e cancelar visita
+- Confirmação operacional em `app.appointments` (`confirmation_status`, lembrete 24h)
+- API `POST /v1/ops/notifications/tick` — lembretes de visita e alertas de `failed_messages`
+- Workflow n8n `06-ops-notifications.json` (cron 30 min → WhatsApp operacional)
+- Migração `007_appointment_confirmation_ops.sql`
+
 ## [0.19.1] - 2026-05-18
 
 ### Fixed
