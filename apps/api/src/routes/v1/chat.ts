@@ -336,7 +336,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         config.features.humanHandoff &&
         agentConfig.capabilities.includes("handoff");
       const schedulingOn =
-        schedulingOn &&
+        config.features.scheduling &&
         agentConfig.capabilities.includes("scheduling");
       const ragOn =
         config.features.propertyRag &&
