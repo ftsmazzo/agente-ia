@@ -125,6 +125,9 @@ Variáveis no n8n:
 | `PORTAL_PUBLIC_URL` | URL do portal (link no lembrete de confirmação) |
 | `PUBLIC_AGENT_API_URL` | URL da API (tick) |
 | `AGENT_API_KEY` | Igual `API_INTERNAL_KEY` |
+| `EVOLUTION_BASE_URL` | Igual no agente-ia (rede interna, ex. `http://evolution:8080`) |
+| `EVOLUTION_API_KEY` | Igual no agente-ia |
+| `EVOLUTION_INSTANCE` | **Obrigatório no n8n** — nome exato da instância (ex. `Teste`). O workflow 01 pega do webhook; o **06 não**. |
 
 O workflow `01-whatsapp-agent.json` notifica o corretor **na hora** quando `/v1/chat` retorna `appointmentBooked`.
 

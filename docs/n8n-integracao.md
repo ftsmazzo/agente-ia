@@ -39,6 +39,9 @@ No app **n8n** do EasyPanel, adicione (Environment, não Build Args):
 | `AGENT_API_KEY` | *(igual `API_INTERNAL_KEY` da API)* | Header `X-API-Key` |
 | `EVOLUTION_BASE_URL` | `http://evolution:8080` | Base da Evolution |
 | `EVOLUTION_API_KEY` | *(sua apikey)* | Header `apikey` na Evolution |
+| `EVOLUTION_INSTANCE` | `Teste` | Nome da instância — **obrigatório** no workflow `06-ops-notifications` |
+| `OPS_NOTIFY_PHONE` | *(opcional)* | Lembretes/alertas; se vazio, usa `APPOINTMENT_NOTIFY_PHONE` |
+| `PORTAL_PUBLIC_URL` | URL do portal | Link no lembrete de confirmação |
 | `DEBOUNCE_MS` | `3000` | Janela de debounce (igual na API) |
 | `APPOINTMENT_NOTIFY_PHONE` | `5516999999999` | Opcional: corretor que recebe alerta de visita agendada |
 | `PUBLIC_AGENT_API_URL` | `https://agent-ia.seudominio.com` | Opcional: URL pública para link `.ics` |
