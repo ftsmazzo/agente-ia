@@ -25,6 +25,10 @@ No **Portal → Personalizar agente**, os checkboxes ligam blocos no prompt inte
 
 **Infra (não é checkbox):** `whatsapp-core` — workflow `01-whatsapp-agent.json` + Evolution.
 
+Guia passo a passo (nova empresa): **[instalacao-nova-empresa.md](./instalacao-nova-empresa.md)**  
+Checklist no terminal: `npm run product:install-checklist -- "Nome da Empresa"`  
+Workflows n8n: **[n8n/workflows/INSTALL.md](../n8n/workflows/INSTALL.md)**
+
 ## Instalação guiada (EasyPanel — sem um clique)
 
 ### 1. API (agente-ia)
