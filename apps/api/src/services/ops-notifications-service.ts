@@ -40,7 +40,6 @@ function formatPhone(phone: string): string {
 export async function runOpsNotificationTick(
   pool: pg.Pool,
   brand: BrandConfig,
-  options?: { portalBaseUrl?: string | null },
 ): Promise<{ messages: OpsNotificationMessage[] }> {
   const messages: OpsNotificationMessage[] = [];
 

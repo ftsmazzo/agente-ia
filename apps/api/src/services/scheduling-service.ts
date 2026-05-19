@@ -840,7 +840,6 @@ export async function updateAppointment(
     if (!selected) {
       return { ok: false, reason: "slot_unavailable", slots: available };
     }
-    const settings = await getSchedulingSettings(pool);
     const atSlot = await countActiveAtSlot(
       pool,
       selected.startsAt,

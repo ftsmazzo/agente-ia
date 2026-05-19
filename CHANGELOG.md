@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.3] - 2026-05-19
+
+### Fixed
+
+- Build TypeScript: variável `settings` duplicada em `updateAppointment`; parâmetro `options` não usado no tick de notificações
+
 ## [0.22.2] - 2026-05-19
 
 ### Fixed
