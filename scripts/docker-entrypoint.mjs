@@ -3,7 +3,19 @@
  * Container entrypoint — avoids shell/CRLF issues on Windows builds.
  * 1. Wait for Postgres  2. Run migrations  3. Exec CMD (API)
  */
+import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+
+if (!process.env.APP_VERSION) {
+  try {
+    const pkg = JSON.parse(
+      readFileSync("/app/package-root.json", "utf8"),
+    );
+    if (pkg.version) process.env.APP_VERSION = String(pkg.version);
+  } catch {
+    /* optional */
+  }
+}
 
 function runNodeScript(label, scriptPath) {
   console.log(`[entrypoint] ${label}`);

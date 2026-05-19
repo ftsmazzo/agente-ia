@@ -41,7 +41,10 @@ import {
   disconnectWhatsApp,
   getWhatsAppStatus,
 } from "../../services/evolution-service.js";
-import { getSystemOverview } from "../../services/portal-system-service.js";
+import {
+  getDashboardHealthSummary,
+  getSystemOverview,
+} from "../../services/portal-system-service.js";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -387,6 +390,11 @@ export async function portalRoutes(app: FastifyInstance): Promise<void> {
       /* dashboard parcial ok */
     }
 
+    const health = await getDashboardHealthSummary(app.config, app.db, {
+      catalogActive: propertiesActive,
+      failedMessages,
+    });
+
     return reply.send({
       brand: {
         name: brand.brandName,
@@ -401,6 +409,7 @@ export async function portalRoutes(app: FastifyInstance): Promise<void> {
       scheduling: { appointmentsUpcoming },
       crm: { contactsTotal, conversationsTotal },
       ops: { failedMessagesUnresolved: failedMessages },
+      health,
     });
   });
 

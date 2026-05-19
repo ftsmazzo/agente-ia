@@ -48,6 +48,15 @@ export type Dashboard = {
   scheduling: { appointmentsUpcoming: number };
   crm: { contactsTotal: number; conversationsTotal: number };
   ops: { failedMessagesUnresolved: number };
+  health: {
+    overall: "ok" | "warn" | "error";
+    version: string;
+    whatsapp: {
+      status: "connected" | "connecting" | "disconnected" | "unknown";
+      phone: string | null;
+    };
+    alerts: string[];
+  };
 };
 
 export type SchedulingSettings = {

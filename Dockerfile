@@ -31,6 +31,7 @@ RUN apk add --no-cache wget \
   && addgroup -g 1001 -S realty && adduser -S realty -u 1001 -G realty
 
 COPY --from=builder /app/package.json ./
+COPY --from=builder /app/package.json ./package-root.json
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages/shared/package.json ./packages/shared/
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
@@ -46,7 +47,6 @@ COPY planilha/Imoveis.xlsx ./planilha/Imoveis.xlsx
 
 ENV APP_ROOT=/app
 ENV RUN_MIGRATIONS_ON_START=true
-ENV APP_VERSION=0.14.0
 ENV CATALOG_IMPORT_ON_START=false
 
 RUN chown -R realty:realty /app/db /app/scripts /app/planilha

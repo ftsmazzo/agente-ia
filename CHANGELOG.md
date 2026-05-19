@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.0] - 2026-05-18
+
+### Added
+
+- Início: alertas de saúde (WhatsApp, falhas, catálogo, RESET_DEV) com links rápidos
+- Doc: [implantacao-nova-empresa.md](./docs/implantacao-nova-empresa.md) — roteiro deploy do zero
+
+### Changed
+
+- `APP_VERSION` lida do `package.json` no startup do container (Sistema e health)
+
 ## [0.18.0] - 2026-05-18
 
 ### Added

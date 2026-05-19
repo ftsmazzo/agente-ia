@@ -83,3 +83,4 @@ Ver arquitetura em [arquitetura-persona-rag.md](./arquitetura-persona-rag.md). O
 - v0.16 ✅ Contatos (CRM) + controle de modo nas conversas
 - v0.17 ✅ Gestão WhatsApp (Evolution) no portal
 - v0.18 ✅ Checklist Sistema (saúde do deploy)
+- v0.19 ✅ Início com alertas + guia implantação zerada

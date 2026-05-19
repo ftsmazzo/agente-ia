@@ -4,6 +4,7 @@ import { checkRedis } from "../redis/client.js";
 import type { AppConfig } from "../config/app-config.js";
 import {
   getWhatsAppStatus,
+  type WhatsAppConnectionStatus,
   type WhatsAppStatus,
 } from "./evolution-service.js";
 
@@ -32,6 +33,68 @@ function worstStatus(items: ChecklistItem[]): ChecklistStatus {
   if (items.some((i) => i.status === "error")) return "error";
   if (items.some((i) => i.status === "warn")) return "warn";
   return "ok";
+}
+
+export type DashboardHealthSummary = {
+  overall: ChecklistStatus;
+  version: string;
+  whatsapp: {
+    status: WhatsAppConnectionStatus;
+    phone: string | null;
+  };
+  alerts: string[];
+};
+
+export async function getDashboardHealthSummary(
+  config: AppConfig,
+  pool: pg.Pool,
+  counts: { catalogActive: number; failedMessages: number },
+): Promise<DashboardHealthSummary> {
+  const alerts: string[] = [];
+  let overall: ChecklistStatus = "ok";
+
+  const bump = (level: ChecklistStatus) => {
+    if (level === "error") overall = "error";
+    else if (level === "warn" && overall !== "error") overall = "warn";
+  };
+
+  if (process.env.RESET_DEV_DATA_ON_START === "true") {
+    alerts.push("RESET_DEV_DATA_ON_START ativo — desligue em produção");
+    bump("error");
+  }
+
+  if (counts.failedMessages > 0) {
+    alerts.push(
+      `${counts.failedMessages} falha(s) pendente(s) — veja Monitor`,
+    );
+    bump("warn");
+  }
+
+  if (counts.catalogActive === 0) {
+    alerts.push("Catálogo vazio — importe CSV se o agente usar itens");
+    bump("warn");
+  }
+
+  if (!config.llm.enabled) {
+    alerts.push("LLM sem chave configurada");
+    bump("warn");
+  }
+
+  const whatsapp = await getWhatsAppStatus(config.evolution);
+  if (!whatsapp.configured) {
+    alerts.push("Evolution não configurada (EVOLUTION_* na API)");
+    bump("warn");
+  } else if (whatsapp.status !== "connected") {
+    alerts.push("WhatsApp desconectado");
+    bump("warn");
+  }
+
+  return {
+    overall,
+    version: process.env.APP_VERSION ?? "0.0.0",
+    whatsapp: { status: whatsapp.status, phone: whatsapp.phone },
+    alerts,
+  };
 }
 
 export async function getSystemOverview(
