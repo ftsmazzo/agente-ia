@@ -7,6 +7,10 @@ import {
 import type { LlmProviderId } from "../services/llm/types.js";
 import { resolveOpenAiMaxOutputTokens } from "../services/llm/openai-model.js";
 import { loadRagSettings, type RagSettings } from "./rag-config.js";
+import {
+  loadEvolutionSettings,
+  type EvolutionSettings,
+} from "./evolution-config.js";
 
 export type LlmSettings = {
   enabled: boolean;
@@ -50,6 +54,7 @@ export type AppConfig = {
   llm: LlmSettings;
   rag: RagSettings;
   portal: PortalAuthConfig;
+  evolution: EvolutionSettings;
 };
 
 function resolveLlmProvider(): LlmProviderId {
@@ -149,5 +154,6 @@ export function loadAppConfig(): AppConfig {
         process.env.NODE_ENV ?? "development",
       ),
     },
+    evolution: loadEvolutionSettings(),
   };
 }

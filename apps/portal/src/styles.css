@@ -376,3 +376,128 @@ textarea {
   color: var(--muted);
   margin: 1rem 0 0.5rem;
 }
+
+.wa-card {
+  background: linear-gradient(145deg, #1a222c 0%, #151b24 100%);
+  border: 1px solid var(--surface2);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  max-width: 520px;
+}
+
+.wa-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.wa-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.wa-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.wa-avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface2);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.wa-instance {
+  font-size: 1.05rem;
+}
+
+.wa-status {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.35rem 0.65rem;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.wa-status-ok {
+  background: rgba(107, 207, 142, 0.15);
+  color: #6bcf8e;
+}
+
+.wa-status-pending {
+  background: rgba(255, 193, 7, 0.15);
+  color: #ffc107;
+}
+
+.wa-status-off {
+  background: rgba(232, 93, 93, 0.12);
+  color: var(--danger);
+}
+
+.wa-phone-box {
+  text-align: center;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 10px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.wa-phone-label {
+  display: block;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+}
+
+.wa-phone-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #f0a060;
+}
+
+.wa-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.wa-qr-panel {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  background: var(--surface);
+  border-radius: 10px;
+  text-align: center;
+}
+
+.wa-qr-img {
+  max-width: 260px;
+  width: 100%;
+  border-radius: 8px;
+  background: #fff;
+  padding: 0.5rem;
+}
+
+.wa-pairing code {
+  font-size: 1.1rem;
+  color: #6bcf8e;
+}
+
+.wa-webhook-url {
+  display: block;
+  word-break: break-all;
+  padding: 0.65rem;
+  background: var(--bg);
+  border-radius: 8px;
+  font-size: 0.8rem;
+}

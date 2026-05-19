@@ -49,6 +49,9 @@ export function DashboardPage() {
         <h2>Atalhos</h2>
         <ul style={{ margin: 0, paddingLeft: "1.2rem", color: "var(--muted)" }}>
           <li>
+            <Link to="/whatsapp">WhatsApp</Link> — status e reconectar (QR)
+          </li>
+          <li>
             <Link to="/contatos">Contatos</Link> — CRM automático do WhatsApp
           </li>
           <li>

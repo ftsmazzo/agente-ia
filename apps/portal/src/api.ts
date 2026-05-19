@@ -153,6 +153,19 @@ export type ConversationThread = {
   redisHistory: Array<{ role: "user" | "assistant"; content: string }>;
 };
 
+export type WhatsAppStatus = {
+  configured: boolean;
+  instanceName: string | null;
+  status: "connected" | "connecting" | "disconnected" | "unknown";
+  stateRaw: string | null;
+  phone: string | null;
+  profileName: string | null;
+  profilePictureUrl: string | null;
+  webhookUrl: string | null;
+  integration: string | null;
+  error: string | null;
+};
+
 export type ContactSummary = {
   phone: string;
   displayName: string | null;
@@ -388,6 +401,23 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ cancelAppointments: true }),
     });
+  },
+  getWhatsAppStatus() {
+    return request<{ whatsapp: WhatsAppStatus }>("/v1/portal/whatsapp/status");
+  },
+  connectWhatsApp() {
+    return request<{
+      ok: boolean;
+      qrCodeDataUrl: string | null;
+      pairingCode: string | null;
+      message: string | null;
+    }>("/v1/portal/whatsapp/connect", { method: "POST" });
+  },
+  disconnectWhatsApp() {
+    return request<{ ok: boolean; whatsapp: WhatsAppStatus }>(
+      "/v1/portal/whatsapp/disconnect",
+      { method: "POST" },
+    );
   },
   getContacts(params?: { search?: string; limit?: number; offset?: number }) {
     const q = new URLSearchParams();

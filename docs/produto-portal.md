@@ -68,6 +68,7 @@ Ver arquitetura em [arquitetura-persona-rag.md](./arquitetura-persona-rag.md). O
 | `/agenda` | Horários, visitas, bloqueios |
 | `/catalogo` | CSV: analisar colunas, importar (substituir ou mesclar), exportar |
 | `/agente` | Tom, empresa, objetivos |
+| `/whatsapp` | Status Evolution, reconectar QR, webhook n8n (ref.) |
 | `/contatos` | CRM: contatos e qualificação |
 | `/conversas` | Histórico + modo bot/usuário |
 | `/monitor` | Falhas de processamento |
@@ -79,3 +80,4 @@ Ver arquitetura em [arquitetura-persona-rag.md](./arquitetura-persona-rag.md). O
 - v0.14 ✅ Catálogo CSV genérico + mesclar/exportar
 - v0.15 ✅ Histórico de conversas no painel
 - v0.16 ✅ Contatos (CRM) + controle de modo nas conversas
+- v0.17 ✅ Gestão WhatsApp (Evolution) no portal

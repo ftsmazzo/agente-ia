@@ -25,6 +25,7 @@ export function Layout() {
         <NavLink to="/agenda">Agenda</NavLink>
         <NavLink to="/catalogo">Catálogo</NavLink>
         <NavLink to="/agente">Agente</NavLink>
+        <NavLink to="/whatsapp">WhatsApp</NavLink>
         <NavLink to="/contatos">Contatos</NavLink>
         <NavLink to="/conversas">Conversas</NavLink>
         <NavLink to="/monitor">Monitor</NavLink>

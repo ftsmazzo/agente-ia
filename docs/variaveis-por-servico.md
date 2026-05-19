@@ -35,7 +35,7 @@ WhatsApp ←→ Evolution ←→ webhook → n8n (workflows) ←→ API agente-i
 |-------------------|-----------------|
 | **Postgres** | Banco `realty` (usuário/senha → `DATABASE_URL` na API) |
 | **Redis** | Cache/fila (`REDIS_URL` na API) |
-| **agente-ia** (API) | Marca, LLM, RAG, Postgres, Redis, debounce, prompts |
+| **agente-ia** (API) | Marca, LLM, RAG, Postgres, Redis, debounce, prompts, Evolution (portal WhatsApp) |
 | **n8n** | Ponte Evolution ↔ API, alerta de visita, handoff Chatwoot |
 | **Evolution** | WhatsApp + integração Chatwoot (painel ou API) |
 | **Chatwoot** | Inbox, token, webhooks para n8n |
@@ -77,6 +77,7 @@ WhatsApp ←→ Evolution ←→ webhook → n8n (workflows) ←→ API agente-i
 - [ ] `RUN_MIGRATIONS_ON_START=true`
 - [ ] `RESET_DEV_DATA_ON_START=false`
 - [ ] `FEATURE_SCHEDULING=true`, `FEATURE_HUMAN_HANDOFF=true`
+- [ ] `EVOLUTION_BASE_URL`, `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE` (portal WhatsApp)
 
 ### n8n
 

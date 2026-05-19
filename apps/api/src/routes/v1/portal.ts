@@ -36,6 +36,11 @@ import {
 import { listPortalContacts } from "../../services/portal-contacts-service.js";
 import { resetConversationForPhone } from "../../services/conversation-reset.js";
 import { setConversationMode } from "../../services/conversation-state.js";
+import {
+  connectWhatsApp,
+  disconnectWhatsApp,
+  getWhatsAppStatus,
+} from "../../services/evolution-service.js";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -287,6 +292,36 @@ export async function portalRoutes(app: FastifyInstance): Promise<void> {
     });
     return reply.send(result);
   });
+
+  app.get("/v1/portal/whatsapp/status", async (_request, reply) => {
+    const status = await getWhatsAppStatus(app.config.evolution);
+    return reply.send({ whatsapp: status });
+  });
+
+  app.post("/v1/portal/whatsapp/connect", async (_request, reply) => {
+    try {
+      const result = await connectWhatsApp(app.config.evolution);
+      return reply.send({ ok: true, ...result });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "connect_failed";
+      return reply.status(502).send({ error: "evolution_error", message });
+    }
+  });
+
+  app.post(
+    "/v1/portal/whatsapp/disconnect",
+    { preHandler: requirePortalRole(["installer"]) },
+    async (_request, reply) => {
+      try {
+        await disconnectWhatsApp(app.config.evolution);
+        const status = await getWhatsAppStatus(app.config.evolution);
+        return reply.send({ ok: true, whatsapp: status });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "disconnect_failed";
+        return reply.status(502).send({ error: "evolution_error", message });
+      }
+    },
+  );
 
   app.get("/v1/portal/ops/failed-messages", async (request, reply) => {
     const query = request.query as { limit?: string; all?: string };
