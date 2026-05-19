@@ -4,6 +4,7 @@ import { formatSlotLabel } from "./scheduling-service.js";
 
 export type OpsNotificationKind =
   | "appointment_reminder_24h"
+  | "appointment_reminder_soon"
   | "failed_message"
   | "system_health";
 
@@ -14,8 +15,13 @@ export type OpsNotificationMessage = {
   referenceId?: number;
 };
 
-const REMINDER_MIN_HOURS = 22;
-const REMINDER_MAX_HOURS = 26;
+/** Janela principal (~24h antes). Cron a cada 30 min cobre vários ticks nesse intervalo. */
+const REMINDER_MIN_HOURS = 20;
+const REMINDER_MAX_HOURS = 28;
+
+/** Visitas agendadas com pouca antecedência: um lembrete se faltar 1–20h e nunca foi enviado. */
+const CATCHUP_MIN_HOURS = 1;
+const CATCHUP_MAX_HOURS = 20;
 
 function formatPhone(phone: string): string {
   const digits = phone.replace(/\D/g, "");
@@ -35,7 +41,7 @@ export async function runOpsNotificationTick(
     ? `\nPortal: ${options.portalBaseUrl.replace(/\/$/, "")}/agenda`
     : "\nAbra o portal na seção Agenda para confirmar.";
 
-  const { rows: dueAppointments } = await pool.query<{
+  type DueAppointmentRow = {
     id: number;
     phone: string;
     customer_name: string | null;
@@ -43,28 +49,53 @@ export async function runOpsNotificationTick(
     starts_at: Date;
     timezone: string;
     location: string;
-  }>(
-    `SELECT id, phone, customer_name, property_code, starts_at, timezone, location
-     FROM app.appointments
-     WHERE status IN ('scheduled', 'confirmed')
-       AND confirmation_status = 'pending'
-       AND reminder_24h_sent_at IS NULL
-       AND starts_at > NOW()
-       AND starts_at <= NOW() + ($1::text || ' hours')::interval
-       AND starts_at >= NOW() + ($2::text || ' hours')::interval
+    reminder_kind: "24h" | "soon";
+  };
+
+  const { rows: dueAppointments } = await pool.query<DueAppointmentRow>(
+    `SELECT id, phone, customer_name, property_code, starts_at, timezone, location,
+            reminder_kind
+     FROM (
+       SELECT id, phone, customer_name, property_code, starts_at, timezone, location,
+              '24h'::text AS reminder_kind
+       FROM app.appointments
+       WHERE status IN ('scheduled', 'confirmed')
+         AND confirmation_status = 'pending'
+         AND reminder_24h_sent_at IS NULL
+         AND starts_at > NOW()
+         AND starts_at <= NOW() + ($1::text || ' hours')::interval
+         AND starts_at >= NOW() + ($2::text || ' hours')::interval
+       UNION ALL
+       SELECT id, phone, customer_name, property_code, starts_at, timezone, location,
+              'soon'::text AS reminder_kind
+       FROM app.appointments
+       WHERE status IN ('scheduled', 'confirmed')
+         AND confirmation_status = 'pending'
+         AND reminder_24h_sent_at IS NULL
+         AND starts_at > NOW() + ($3::text || ' hours')::interval
+         AND starts_at < NOW() + ($4::text || ' hours')::interval
+     ) due
      ORDER BY starts_at ASC
      LIMIT 20`,
-    [String(REMINDER_MAX_HOURS), String(REMINDER_MIN_HOURS)],
+    [
+      String(REMINDER_MAX_HOURS),
+      String(REMINDER_MIN_HOURS),
+      String(CATCHUP_MIN_HOURS),
+      String(CATCHUP_MAX_HOURS),
+    ],
   );
 
   for (const row of dueAppointments) {
     const when = formatSlotLabel(row.starts_at, row.timezone);
     const who = row.customer_name?.trim() || formatPhone(row.phone);
     const property = row.property_code ? ` · imóvel ${row.property_code}` : "";
+    const soon = row.reminder_kind === "soon";
     const text = [
       `📅 *Lembrete ${brand.brandName}*`,
       "",
-      `Visita em ~24h: *${when}*`,
+      soon
+        ? `Visita em breve: *${when}*`
+        : `Visita em ~24h: *${when}*`,
       `Cliente: ${who}${property}`,
       `Local: ${row.location}`,
       "",
@@ -73,7 +104,7 @@ export async function runOpsNotificationTick(
 
     messages.push({
       id: `appointment_reminder:${row.id}`,
-      kind: "appointment_reminder_24h",
+      kind: soon ? "appointment_reminder_soon" : "appointment_reminder_24h",
       text,
       referenceId: row.id,
     });

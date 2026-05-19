@@ -112,7 +112,8 @@ O workflow `06-ops-notifications.json` roda a cada **30 minutos**, chama `POST /
 
 | Tipo | Quando |
 |------|--------|
-| Lembrete 24h | Visita em ~22–26h, `confirmation_status = pending` |
+| Lembrete ~24h | Visita daqui a **20–28 horas**, `confirmation_status = pending` |
+| Lembrete “em breve” | Visita daqui a **1–20 horas** (agendou com pouca antecedência), só 1x |
 | Erro novo | Registro em `app.failed_messages` ainda não alertado |
 | Resumo | 10+ falhas não resolvidas (no máximo 1x a cada 12h) |
 
